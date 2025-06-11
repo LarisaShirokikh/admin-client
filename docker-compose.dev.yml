@@ -1,0 +1,21 @@
+# docker-compose.dev.yml
+version: '3.8'
+
+services:
+  admin-client:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    command: yarn dev  # 🔥 Dev режим с hot reload
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app                    # 🔥 Маппинг исходного кода
+      - /app/node_modules         # Исключаем node_modules
+      - /app/.next                # Исключаем .next
+    environment:
+      - NODE_ENV=development
+      - NEXT_TELEMETRY_DISABLED=1
+      - NEXT_PUBLIC_API_URL=http://host.docker.internal:8000
+    stdin_open: true
+    tty: true

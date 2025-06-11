@@ -1,0 +1,13 @@
+services:
+  admin-client:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: doors-admin
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://host.docker.internal:8000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
