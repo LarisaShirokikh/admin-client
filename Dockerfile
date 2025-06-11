@@ -25,7 +25,11 @@ CMD ["yarn", "dev"]
 # ===============================
 FROM base AS production
 
-# Собираем приложение для продакшена
+# ИСПРАВЛЕНИЕ: Принимаем переменные как build args
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+
+# Собираем приложение для продакшена с переменными
 RUN yarn build
 
 # Удаляем dev зависимости для уменьшения размера
