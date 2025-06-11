@@ -54,16 +54,16 @@ interface UploadForm {
 }
 
 // Функция для правильного формирования URL видео
-const getVideoUrl = (video: VideoResponse): string => {
-    if (!video.url) return '';
+// const getVideoUrl = (video: VideoResponse): string => {
+//     if (!video.url) return '';
 
-    if (video.url.startsWith('http')) {
-        return video.url;
-    }
+//     if (video.url.startsWith('http')) {
+//         return video.url;
+//     }
 
-    const backendHost = window.location.hostname;
-    return `http://${backendHost}:8000/admin-api${video.url}`;
-};
+//     const backendHost = window.location.hostname;
+//     return `http://${backendHost}:8000/admin-api${video.url}`;
+// };
 
 export default function VideoUploadPage() {
     const { isSuperuser } = useAuth();
@@ -433,7 +433,7 @@ export default function VideoUploadPage() {
                             {/* Видео */}
                             <video
                                 className="w-full h-full object-cover"
-                                src={getVideoUrl(video)}
+                                src={videoUtils.getVideoUrl(video)}
                                 poster={video.thumbnail_url}
                                 autoPlay
                                 loop
