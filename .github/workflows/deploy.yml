@@ -1,0 +1,48 @@
+name: Deploy Admin-Frontend to Production
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Deploy admin-frontend to server
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.HOST }}
+        username: ${{ secrets.USERNAME }}
+        key: ${{ secrets.SSH_KEY }}
+        script: |
+          # Переходим в директорию admin-frontend
+          cd /home/deploy/doors/admin-frontend
+          
+          # Получаем последние изменения
+          git pull origin main
+          
+          # Переходим в корневую директорию проекта
+          cd /home/deploy/doors
+          
+          # Останавливаем admin-frontend для безопасного обновления
+          docker compose stop admin-frontend
+          
+          # Пересобираем образ с новыми изменениями
+          docker compose build admin-frontend --no-cache
+          
+          # Запускаем admin-frontend
+          docker compose up -d admin-frontend
+          
+          # Перезапускаем nginx для обновления соединений
+          docker compose restart nginx
+          
+          # Перезапускаем worker если нужно
+          docker compose restart worker
+          
+          # Очищаем неиспользуемые образы для экономии места
+          docker image prune -f
+          
+          # Проверяем статус контейнеров
+          docker compose ps admin-frontend nginx
