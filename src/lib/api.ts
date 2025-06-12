@@ -8,8 +8,9 @@ import {
 } from '@/types/admin';
 
 class ApiClient {
-    public client: AxiosInstance; // Делаем публичным для использования в других API
-    private refreshPromise: Promise<string | null> | null = null; // Исправленная типизация
+    public client: AxiosInstance;
+    private refreshPromise: Promise<string | null> | null = null;
+    private isRefreshing = false;
 
     constructor() {
         this.client = axios.create({
@@ -45,15 +46,31 @@ class ApiClient {
                 if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
                     originalRequest._retry = true;
 
+                    // Если уже идет обновление токена, ждем его завершения
+                    if (this.isRefreshing) {
+                        try {
+                            const newToken = await this.refreshPromise;
+                            if (newToken) {
+                                originalRequest.headers.Authorization = `Bearer ${newToken}`;
+                                return this.client(originalRequest);
+                            }
+                        } catch {
+                            this.handleAuthFailure();
+                            return Promise.reject(error);
+                        }
+                    }
+
                     try {
                         const newToken = await this.refreshToken();
                         if (newToken) {
                             originalRequest.headers.Authorization = `Bearer ${newToken}`;
                             return this.client(originalRequest);
+                        } else {
+                            this.handleAuthFailure();
                         }
                     } catch (refreshError) {
-                        this.logout();
-                        window.location.href = '/login';
+                        console.error('Token refresh failed:', refreshError);
+                        this.handleAuthFailure();
                         return Promise.reject(refreshError);
                     }
                 }
@@ -63,11 +80,23 @@ class ApiClient {
         );
     }
 
+    private handleAuthFailure() {
+        console.log('Authentication failed, clearing tokens and redirecting to login');
+        this.logout();
+        // Не делаем мгновенный редирект, дадим возможность пользователю доделать действия
+        setTimeout(() => {
+            if (window.location.pathname !== 'admin/login') {
+                window.location.href = 'admin/login';
+            }
+        }, 1000);
+    }
+
     private async refreshToken(): Promise<string | null> {
-        if (this.refreshPromise) {
+        if (this.refreshPromise && this.isRefreshing) {
             return this.refreshPromise;
         }
 
+        this.isRefreshing = true;
         this.refreshPromise = this.doRefreshToken();
 
         try {
@@ -75,32 +104,59 @@ class ApiClient {
             return result;
         } finally {
             this.refreshPromise = null;
+            this.isRefreshing = false;
         }
     }
 
     private async doRefreshToken(): Promise<string | null> {
         const refreshToken = Cookies.get('refresh_token');
         if (!refreshToken) {
+            console.log('No refresh token available');
             throw new Error('No refresh token');
         }
 
         try {
+            console.log('Attempting to refresh token...');
+
+            // ИСПРАВЛЕНО: отправляем объект с полем refresh_token
             const response = await axios.post(
                 `${process.env.NEXT_PUBLIC_API_URL}/api/v1/admin/auth/refresh`,
-                { refresh_token: refreshToken }
+                { refresh_token: refreshToken }, // Теперь отправляем объект, а не строку
+                {
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                }
             );
 
             const { access_token, refresh_token: newRefreshToken } = response.data;
 
-            // Сохраняем новые токены
-            Cookies.set('access_token', access_token, { expires: 1 / 24 }); // 1 час
-            Cookies.set('refresh_token', newRefreshToken, { expires: 1 }); // 1 день
+            console.log('Token refreshed successfully');
+
+            // Сохраняем новые токены с увеличенным временем жизни
+            Cookies.set('access_token', access_token, { expires: 2 / 24 }); // 2 часа
+            if (newRefreshToken) {
+                Cookies.set('refresh_token', newRefreshToken, { expires: 7 }); // 7 дней
+            }
 
             return access_token;
-        } catch {
-            console.error('Token refresh failed');
+        } catch (error) {
+            console.error('Token refresh failed:', error);
+
+            // Если refresh токен тоже невалиден, очищаем все
+            if (axios.isAxiosError(error) && (error.response?.status === 401 || error.response?.status === 422)) {
+                console.log('Refresh token is invalid, clearing all tokens');
+                this.clearTokens();
+            }
+
             return null;
         }
+    }
+
+    private clearTokens() {
+        Cookies.remove('access_token');
+        Cookies.remove('refresh_token');
+        Cookies.remove('user');
     }
 
     private handleError(error: AxiosError): ApiError {
@@ -123,10 +179,12 @@ class ApiClient {
 
         const { access_token, refresh_token, user } = response.data;
 
-        // Сохраняем токены в cookies
-        Cookies.set('access_token', access_token, { expires: 1 / 24 }); // 1 час
-        Cookies.set('refresh_token', refresh_token, { expires: 1 }); // 1 день
-        Cookies.set('user', JSON.stringify(user), { expires: 1 });
+        // Сохраняем токены в cookies с увеличенным временем
+        Cookies.set('access_token', access_token, { expires: 2 / 24 }); // 2 часа
+        Cookies.set('refresh_token', refresh_token, { expires: 7 }); // 7 дней
+        Cookies.set('user', JSON.stringify(user), { expires: 7 });
+
+        console.log('User logged in successfully');
 
         return response.data;
     }
@@ -138,15 +196,16 @@ class ApiClient {
             console.error('Logout error:', error);
         } finally {
             // Очищаем токены
-            Cookies.remove('access_token');
-            Cookies.remove('refresh_token');
-            Cookies.remove('user');
+            this.clearTokens();
+            console.log('User logged out, tokens cleared');
         }
     }
 
     // Проверка авторизации
     isAuthenticated(): boolean {
-        return !!Cookies.get('access_token');
+        const hasAccessToken = !!Cookies.get('access_token');
+        const hasRefreshToken = !!Cookies.get('refresh_token');
+        return hasAccessToken || hasRefreshToken; // Достаточно любого из токенов
     }
 
     getCurrentUser() {
@@ -159,7 +218,8 @@ class ApiClient {
         try {
             await this.client.get('/api/v1/admin/auth/me');
             return true;
-        } catch {
+        } catch (error) {
+            console.log('Token validation failed, but this is normal if token expired', error);
             return false;
         }
     }

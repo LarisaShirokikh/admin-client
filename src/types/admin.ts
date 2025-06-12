@@ -28,26 +28,37 @@ export interface ApiError {
     status_code?: number;
 }
 
-// Бренды
-export interface Brand {
+export interface BaseEntity {
     id: number;
-    name: string;
-    slug: string;
-    description?: string;
-    is_active: boolean;
     created_at: string;
     updated_at: string;
 }
 
+// Типы для брендов
+export interface Brand extends BaseEntity {
+    name: string;
+    slug: string;
+    description?: string;
+    website?: string;
+    logo_url?: string;
+    is_active: boolean;
+}
+
 export interface BrandCreate {
     name: string;
+    slug: string;
     description?: string;
-    is_active: boolean;
+    website?: string;
+    logo_url?: string;
+    is_active?: boolean;
 }
 
 export interface BrandUpdate {
     name?: string;
+    slug?: string;
     description?: string;
+    website?: string;
+    logo_url?: string;
     is_active?: boolean;
 }
 
