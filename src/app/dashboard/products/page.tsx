@@ -31,6 +31,8 @@ import { DollarSign } from 'lucide-react';
 // import PriceUpdateResultsModal from '@/components/PriceUpdateResultsModal';
 import { PriceUpdateData } from '@/types/products';
 import PriceBulkEditModal from '@/components/PriceBulkEditModal';
+import { Catalog } from '@/types/catalogs';
+import { catalogsApi } from '@/lib/api/catalogs';
 
 
 export default function ProductsPage() {
@@ -63,7 +65,7 @@ export default function ProductsPage() {
     });
     const [sortBy, setSortBy] = useState('created_at');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-    const [showFilters, setShowFilters] = useState(false);
+    const [showFilters, setShowFilters] = useState(true);
 
     const [selectedProducts, setSelectedProducts] = useState<number[]>([]);
     const [selectAll, setSelectAll] = useState(false);
@@ -79,8 +81,10 @@ export default function ProductsPage() {
     const [bulkEditLoading, setBulkEditLoading] = useState(false);
     const [brands, setBrands] = useState<Brand[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
+    const [catalogs, setCatalogs] = useState<Catalog[]>([]);
     const [loadingBrands, setLoadingBrands] = useState(false);
     const [loadingCategories, setLoadingCategories] = useState(false);
+    const [loadingCatalogs, setLoadingCatalogs] = useState(false);
 
     // Состояние для редактирования одного товара
     const [showEditModal, setShowEditModal] = useState(false);
@@ -89,8 +93,6 @@ export default function ProductsPage() {
 
     const [showPriceBulkEdit, setShowPriceBulkEdit] = useState(false);
     const [priceBulkEditLoading, setPriceBulkEditLoading] = useState(false);
-    // const [showPriceResults, setShowPriceResults] = useState(false);
-    // const [priceUpdateResults, setPriceUpdateResults] = useState<BulkPriceUpdateResponse | null>(null);
 
     // Мемоизируем filters чтобы избежать мутаций
     const memoizedFilters = useMemo(() => ({
@@ -119,9 +121,58 @@ export default function ProductsPage() {
         []
     );
 
+    // Функции загрузки справочников
+    const loadBrands = useCallback(async () => {
+        try {
+            setLoadingBrands(true);
+            const brandsData = await brandsApi.getBrands();
+            setBrands(brandsData);
+        } catch (error) {
+            console.error('Ошибка загрузки брендов:', error);
+        } finally {
+            setLoadingBrands(false);
+        }
+    }, []);
+
+    const loadCategories = useCallback(async () => {
+        try {
+            setLoadingCategories(true);
+            const categoriesData = await categoriesApi.getCategories();
+            setCategories(categoriesData);
+        } catch (error) {
+            console.error('Ошибка загрузки категорий:', error);
+        } finally {
+            setLoadingCategories(false);
+        }
+    }, []);
+
+    const loadCatalogs = useCallback(async () => {
+        try {
+            setLoadingCatalogs(true);
+            const catalogsData = await catalogsApi.getAll();
+            setCatalogs(catalogsData);
+        } catch (error) {
+            console.error('Ошибка загрузки каталогов:', error);
+        } finally {
+            setLoadingCatalogs(false);
+        }
+    }, []);
+
+    // Загрузка всех справочников при инициализации компонента
+    useEffect(() => {
+        const loadAllReferenceData = async () => {
+            await Promise.all([
+                loadBrands(),
+                loadCategories(),
+                loadCatalogs()
+            ]);
+        };
+
+        loadAllReferenceData();
+    }, [loadBrands, loadCategories, loadCatalogs]);
+
     // Единый эффект для загрузки продуктов с предотвращением зацикливания
     useEffect(() => {
-
         const loadData = async () => {
             try {
                 // Отменяем предыдущий запрос если он еще выполняется
@@ -146,12 +197,10 @@ export default function ProductsPage() {
                     sort_order: sortOrder,
                 };
 
-
                 const [productsData, countData] = await Promise.all([
                     productsApi.getProducts(params),
                     productsApi.getCount({ search, ...memoizedFilters })
                 ]);
-
 
                 setProducts(productsData);
                 setTotalItems(countData.count);
@@ -178,7 +227,7 @@ export default function ProductsPage() {
         };
 
         loadData();
-    }, [search, currentPage, itemsPerPage, memoizedFilters, sortBy, sortOrder]); // Используем memoizedFilters!
+    }, [search, currentPage, itemsPerPage, memoizedFilters, sortBy, sortOrder]);
 
     // Очищаем debounce при размонтировании
     useEffect(() => {
@@ -194,7 +243,7 @@ export default function ProductsPage() {
 
     const handleOpenPriceBulkEdit = async () => {
         setShowPriceBulkEdit(true);
-        await Promise.all([loadBrands(), loadCategories()]);
+        // Справочники уже загружены при инициализации
     };
 
     const handleClosePriceBulkEdit = () => {
@@ -229,11 +278,7 @@ export default function ProductsPage() {
         setEditingProduct(product);
         setShowEditModal(true);
         console.log('Редактирование товара:', product);
-
-        // Загружаем бренды и категории если нужно
-        if (brands.length === 0 || categories.length === 0) {
-            await Promise.all([loadBrands(), loadCategories()]);
-        }
+        // Справочники уже загружены при инициализации
     };
 
     // Обработчик закрытия редактирования одного товара
@@ -270,30 +315,6 @@ export default function ProductsPage() {
         }
     };
 
-    const loadBrands = useCallback(async () => {
-        try {
-            setLoadingBrands(true);
-            const brandsData = await brandsApi.getBrands();
-            setBrands(brandsData);
-        } catch (error) {
-            console.error('Ошибка загрузки брендов:', error);
-        } finally {
-            setLoadingBrands(false);
-        }
-    }, []);
-
-    const loadCategories = useCallback(async () => {
-        try {
-            setLoadingCategories(true);
-            const categoriesData = await categoriesApi.getCategories();
-            setCategories(categoriesData);
-        } catch (error) {
-            console.error('Ошибка загрузки категорий:', error);
-        } finally {
-            setLoadingCategories(false);
-        }
-    }, []);
-
     // Обработчик открытия модального окна
     const handleOpenBulkEdit = async () => {
         const commonCategoryIds = getCommonCategories();
@@ -308,8 +329,7 @@ export default function ProductsPage() {
         setShowBulkEditModal(true);
         console.log('Выбранные продукты:', selectedProducts);
         console.log('Общие категории:', commonCategoryIds);
-        await Promise.all([loadBrands(), loadCategories()]);
-
+        // Справочники уже загружены при инициализации
     };
 
     const handleCategoryToggle = (categoryId: number) => {
@@ -357,13 +377,11 @@ export default function ProductsPage() {
             if (bulkEditData.category_ids.length > 0) updateData.category_ids = bulkEditData.category_ids;
             if (bulkEditData.brand_id) updateData.brand_id = Number(bulkEditData.brand_id);
 
-
             // Используем исправленный batch endpoint
             const batchResponse = await productsApi.batchUpdateProducts({
                 product_ids: selectedProducts,
                 update_data: updateData
             });
-
 
             // Перезагружаем данные
             forceRefresh();
@@ -418,8 +436,7 @@ export default function ProductsPage() {
                 product.categories?.some(cat => cat.id === categoryId)
             )
         );
-    }, [selectedProducts, products]); // Добавил зависимости
-
+    }, [selectedProducts, products]);
 
     // Функция для принудительного обновления
     const forceRefresh = useCallback(() => {
@@ -446,7 +463,6 @@ export default function ProductsPage() {
         }
     }, [debouncedSearch]);
 
-
     // Load stats
     const loadStats = useCallback(async () => {
         try {
@@ -455,7 +471,7 @@ export default function ProductsPage() {
         } catch {
             console.error('Load stats error');
         }
-    }, []); // Нет внешних зависимостей
+    }, []);
 
     // Effects
     useEffect(() => {
@@ -727,7 +743,107 @@ export default function ProductsPage() {
                 {/* Extended Filters */}
                 {showFilters && (
                     <div className="mt-4 pt-4 border-t border-gray-200">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                            {/* Каталог */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Каталог</label>
+                                <select
+                                    value={filters.catalog_id || ''}
+                                    onChange={(e) => handleFilterChange({
+                                        ...filters,
+                                        catalog_id: e.target.value ? Number(e.target.value) : undefined
+                                    })}
+                                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    disabled={loadingCatalogs}
+                                >
+                                    <option value="">Все каталоги</option>
+                                    {loadingCatalogs ? (
+                                        <option disabled>Загрузка...</option>
+                                    ) : catalogs.length === 0 ? (
+                                        <option disabled>Каталоги не найдены</option>
+                                    ) : (
+                                        catalogs.map(catalog => (
+                                            <option key={catalog.id} value={catalog.id}>
+                                                {catalog.name}
+                                            </option>
+                                        ))
+                                    )}
+                                </select>
+                                {loadingCatalogs && (
+                                    <div className="mt-1 text-xs text-gray-500 flex items-center gap-1">
+                                        <RefreshCw className="h-3 w-3 animate-spin" />
+                                        Загрузка...
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Бренд */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Бренд</label>
+                                <select
+                                    value={filters.brand_id || ''}
+                                    onChange={(e) => handleFilterChange({
+                                        ...filters,
+                                        brand_id: e.target.value ? Number(e.target.value) : undefined
+                                    })}
+                                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    disabled={loadingBrands}
+                                >
+                                    <option value="">Все бренды</option>
+                                    {loadingBrands ? (
+                                        <option disabled>Загрузка...</option>
+                                    ) : brands.length === 0 ? (
+                                        <option disabled>Бренды не найдены</option>
+                                    ) : (
+                                        brands.map(brand => (
+                                            <option key={brand.id} value={brand.id}>
+                                                {brand.name}
+                                            </option>
+                                        ))
+                                    )}
+                                </select>
+                                {loadingBrands && (
+                                    <div className="mt-1 text-xs text-gray-500 flex items-center gap-1">
+                                        <RefreshCw className="h-3 w-3 animate-spin" />
+                                        Загрузка...
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Категория */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Категория</label>
+                                <select
+                                    value={filters.category_id || ''}
+                                    onChange={(e) => handleFilterChange({
+                                        ...filters,
+                                        category_id: e.target.value ? Number(e.target.value) : undefined
+                                    })}
+                                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    disabled={loadingCategories}
+                                >
+                                    <option value="">Все категории</option>
+                                    {loadingCategories ? (
+                                        <option disabled>Загрузка...</option>
+                                    ) : categories.length === 0 ? (
+                                        <option disabled>Категории не найдены</option>
+                                    ) : (
+                                        categories.map(category => (
+                                            <option key={category.id} value={category.id}>
+                                                {category.name}
+                                            </option>
+                                        ))
+                                    )}
+                                </select>
+                                {loadingCategories && (
+                                    <div className="mt-1 text-xs text-gray-500 flex items-center gap-1">
+                                        <RefreshCw className="h-3 w-3 animate-spin" />
+                                        Загрузка...
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Статус */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Статус</label>
                                 <select
@@ -744,6 +860,7 @@ export default function ProductsPage() {
                                 </select>
                             </div>
 
+                            {/* Наличие */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Наличие</label>
                                 <select
@@ -760,6 +877,7 @@ export default function ProductsPage() {
                                 </select>
                             </div>
 
+                            {/* Цена от */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Цена от</label>
                                 <input
@@ -774,6 +892,7 @@ export default function ProductsPage() {
                                 />
                             </div>
 
+                            {/* Цена до */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Цена до</label>
                                 <input
@@ -789,24 +908,105 @@ export default function ProductsPage() {
                             </div>
                         </div>
 
-                        <div className="mt-4 flex gap-2">
-                            <button
-                                onClick={() => {
-                                    setFilters({
-                                        brand_id: undefined,
-                                        catalog_id: undefined,
-                                        category_id: undefined,
-                                        is_active: true,
-                                        in_stock: undefined,
-                                        price_from: undefined,
-                                        price_to: undefined,
-                                    });
-                                    clearSearch();
-                                }}
-                                className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                            >
-                                Сбросить фильтры
-                            </button>
+                        {/* Активные фильтры и кнопки управления */}
+                        <div className="mt-4 flex flex-col sm:flex-row gap-4 justify-between">
+                            {/* Активные фильтры */}
+                            <div className="flex flex-wrap gap-2">
+                                {filters.catalog_id && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                                        Каталог: {catalogs.find(c => c.id === filters.catalog_id)?.name}
+                                        <button
+                                            onClick={() => handleFilterChange({ ...filters, catalog_id: undefined })}
+                                            className="hover:text-blue-900"
+                                        >
+                                            <XCircle className="h-3 w-3" />
+                                        </button>
+                                    </span>
+                                )}
+                                {filters.brand_id && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                                        Бренд: {brands.find(b => b.id === filters.brand_id)?.name}
+                                        <button
+                                            onClick={() => handleFilterChange({ ...filters, brand_id: undefined })}
+                                            className="hover:text-green-900"
+                                        >
+                                            <XCircle className="h-3 w-3" />
+                                        </button>
+                                    </span>
+                                )}
+                                {filters.category_id && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">
+                                        Категория: {categories.find(c => c.id === filters.category_id)?.name}
+                                        <button
+                                            onClick={() => handleFilterChange({ ...filters, category_id: undefined })}
+                                            className="hover:text-purple-900"
+                                        >
+                                            <XCircle className="h-3 w-3" />
+                                        </button>
+                                    </span>
+                                )}
+                                {filters.is_active !== undefined && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">
+                                        {filters.is_active ? 'Активные' : 'Неактивные'}
+                                        <button
+                                            onClick={() => handleFilterChange({ ...filters, is_active: undefined })}
+                                            className="hover:text-yellow-900"
+                                        >
+                                            <XCircle className="h-3 w-3" />
+                                        </button>
+                                    </span>
+                                )}
+                                {filters.in_stock !== undefined && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-orange-100 text-orange-800 text-xs rounded-full">
+                                        {filters.in_stock ? 'В наличии' : 'Нет в наличии'}
+                                        <button
+                                            onClick={() => handleFilterChange({ ...filters, in_stock: undefined })}
+                                            className="hover:text-orange-900"
+                                        >
+                                            <XCircle className="h-3 w-3" />
+                                        </button>
+                                    </span>
+                                )}
+                                {(filters.price_from || filters.price_to) && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">
+                                        Цена: {filters.price_from || 0} - {filters.price_to || '∞'}
+                                        <button
+                                            onClick={() => handleFilterChange({
+                                                ...filters,
+                                                price_from: undefined,
+                                                price_to: undefined
+                                            })}
+                                            className="hover:text-red-900"
+                                        >
+                                            <XCircle className="h-3 w-3" />
+                                        </button>
+                                    </span>
+                                )}
+                            </div>
+
+                            {/* Кнопки управления */}
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => {
+                                        setFilters({
+                                            brand_id: undefined,
+                                            catalog_id: undefined,
+                                            category_id: undefined,
+                                            is_active: true,
+                                            in_stock: undefined,
+                                            price_from: undefined,
+                                            price_to: undefined,
+                                        });
+                                        clearSearch();
+                                    }}
+                                    className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm"
+                                >
+                                    Сбросить фильтры
+                                </button>
+                                <div className="text-sm text-gray-500 self-center">
+                                    Найдено: <span className="font-medium">{totalItems}</span> товаров
+                                </div>
+                            </div>
                         </div>
                     </div>
                 )}
@@ -916,7 +1116,6 @@ export default function ProductsPage() {
                                                 />
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
-
                                                 <div className="flex items-center">
                                                     {product.main_image && (
                                                         // eslint-disable-next-line @next/next/no-img-element
@@ -930,7 +1129,6 @@ export default function ProductsPage() {
                                                         <div className="text-sm font-medium text-gray-900">
                                                             {product.name}
                                                         </div>
-
                                                     </div>
                                                 </div>
                                             </td>
@@ -985,7 +1183,6 @@ export default function ProductsPage() {
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                                 <div className="flex items-center justify-end gap-2">
-
                                                     <button
                                                         onClick={() => alert(`Просмотр продукта: ${product.name}`)}
                                                         className="text-blue-600 hover:text-blue-800"
@@ -1123,7 +1320,7 @@ export default function ProductsPage() {
                     onSave={handlePriceBulkEditSave}
                     brands={brands}
                     categories={categories}
-                    catalogs={[]} // Добавьте каталоги если есть
+                    catalogs={catalogs}
                     loading={priceBulkEditLoading}
                 />
             )}
