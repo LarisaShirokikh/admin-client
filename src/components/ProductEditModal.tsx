@@ -1,14 +1,16 @@
 'use client';
 
-import { useState, useRef } from 'react';
-import { XCircle, RefreshCw, Upload, Link as LinkIcon, Trash2, Star, StarOff, Eye, X } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { XCircle, RefreshCw, Upload, Link as LinkIcon, Trash2, Star, StarOff, Eye, X, Image as ImageIcon } from 'lucide-react';
 import {
     ProductEditModalProps,
     ProductUpdate,
     ImageUploadData,
     ImageUpdateData,
-    NewProductImage
+    NewProductImage,
+    ProductImage
 } from '@/types/products';
+import { productsApi } from '@/lib/api/products';
 
 export default function ProductEditModal({
     product,
@@ -26,23 +28,68 @@ export default function ProductEditModal({
         brand_id: product.brand?.id?.toString() || '',
         is_active: product.is_active ?? true,
         in_stock: product.in_stock ?? true,
-        category_ids: product.categories?.map(cat => cat.id) || [] as number[]
+        category_ids: product.categories?.map((cat: { id: number }) => cat.id) || [] as number[]
     });
 
     // Типизированное состояние для работы с изображениями
-    const [images, setImages] = useState<ImageUploadData[]>(
-        product.images?.map(img => ({
-            id: img.id,
-            url: img.url,
-            is_main: img.is_main || false,
-            isNew: false
-        })) || []
-    );
+    const [images, setImages] = useState<ImageUploadData[]>([]);
+    const [imagesLoading, setImagesLoading] = useState(true);
+    const [imagesError, setImagesError] = useState<string | null>(null);
 
     const [imageUrl, setImageUrl] = useState('');
     const [showImagePreview, setShowImagePreview] = useState<string | null>(null);
     const [imageUploading, setImageUploading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Загружаем изображения при монтировании компонента
+    useEffect(() => {
+        const loadImages = async () => {
+            setImagesLoading(true);
+            setImagesError(null);
+
+            try {
+                console.log('Загружаем изображения для продукта:', product.id);
+
+                let imagesToSet: ImageUploadData[] = [];
+
+                // Сначала пробуем использовать изображения из объекта продукта
+                if (product.images && product.images.length > 0) {
+                    console.log('Используем изображения из объекта продукта');
+                    imagesToSet = product.images.map((img: ProductImage) => ({
+                        id: img.id,
+                        url: img.url,
+                        is_main: img.is_main || false,
+                        isNew: false,
+                        alt_text: img.alt_text
+                    }));
+                } else if (product.id) {
+                    // Если изображений нет в объекте продукта, загружаем их отдельно
+                    console.log('Загружаем изображения через API');
+                    const productImages = await productsApi.getProductImages(product.id);
+                    console.log('Загруженные изображения:', productImages);
+
+                    imagesToSet = productImages.map((img: ProductImage) => ({
+                        id: img.id,
+                        url: img.url,
+                        is_main: img.is_main || false,
+                        isNew: false,
+                        alt_text: img.alt_text
+                    }));
+                }
+
+                console.log('Финальный список изображений:', imagesToSet);
+                setImages(imagesToSet);
+                setImagesError(null);
+            } catch (error) {
+                console.error('Ошибка загрузки изображений:', error);
+                setImagesError('Не удалось загрузить изображения');
+            } finally {
+                setImagesLoading(false);
+            }
+        };
+
+        loadImages();
+    }, [product.id, product.images]);
 
     const handleCategoryToggle = (categoryId: number) => {
         setFormData(prev => ({
@@ -54,12 +101,23 @@ export default function ProductEditModal({
     };
 
     // Функции для работы с изображениями
-    const handleAddImageByUrl = () => {
+    const handleAddImageByUrl = async () => {
         if (!imageUrl.trim()) return;
+
+        // Проверяем валидность URL
+        try {
+            const isValid = await productsApi.validateImageUrl(imageUrl.trim());
+            if (!isValid) {
+                alert('Не удалось загрузить изображение по указанной ссылке');
+                return;
+            }
+        } catch (error) {
+            console.warn('Не удалось проверить URL изображения:', error);
+        }
 
         const newImage: ImageUploadData = {
             url: imageUrl.trim(),
-            is_main: images.length === 0, // Первое изображение становится главным
+            is_main: images.filter(img => !img.toDelete).length === 0, // Первое изображение становится главным
             isNew: true
         };
 
@@ -75,6 +133,7 @@ export default function ProductEditModal({
 
         try {
             const newImages: ImageUploadData[] = [];
+            const activeImagesCount = images.filter(img => !img.toDelete).length;
 
             for (let i = 0; i < files.length; i++) {
                 const file = files[i];
@@ -85,12 +144,19 @@ export default function ProductEditModal({
                     continue;
                 }
 
+                // Проверяем размер файла (например, максимум 10MB)
+                const maxSize = 10 * 1024 * 1024; // 10MB
+                if (file.size > maxSize) {
+                    console.warn(`Файл ${file.name} слишком большой (${(file.size / (1024 * 1024)).toFixed(2)}MB)`);
+                    continue;
+                }
+
                 // Создаем URL для предпросмотра
                 const previewUrl = URL.createObjectURL(file);
 
                 const newImage: ImageUploadData = {
                     url: previewUrl,
-                    is_main: images.length === 0 && i === 0, // Первое изображение становится главным
+                    is_main: activeImagesCount === 0 && i === 0, // Первое изображение становится главным
                     file: file,
                     isNew: true
                 };
@@ -98,9 +164,12 @@ export default function ProductEditModal({
                 newImages.push(newImage);
             }
 
-            setImages(prev => [...prev, ...newImages]);
+            if (newImages.length > 0) {
+                setImages(prev => [...prev, ...newImages]);
+            }
         } catch (error) {
             console.error('Ошибка при обработке файлов:', error);
+            alert('Произошла ошибка при обработке файлов');
         } finally {
             setImageUploading(false);
             // Очищаем input
@@ -120,11 +189,15 @@ export default function ProductEditModal({
                 newImages[index] = { ...imageToDelete, toDelete: true };
             } else {
                 // Если это новое изображение, просто удаляем из массива
+                // Освобождаем URL если это был объект URL
+                if (imageToDelete.file && imageToDelete.url.startsWith('blob:')) {
+                    URL.revokeObjectURL(imageToDelete.url);
+                }
                 newImages.splice(index, 1);
 
                 // Если удаляем главное изображение, назначаем главным первое оставшееся
                 if (imageToDelete.is_main && newImages.length > 0) {
-                    const firstActiveImage = newImages.find(img => !img.toDelete);
+                    const firstActiveImage = newImages.find((img: ImageUploadData) => !img.toDelete);
                     if (firstActiveImage) {
                         firstActiveImage.is_main = true;
                     }
@@ -136,7 +209,7 @@ export default function ProductEditModal({
     };
 
     const handleSetMainImage = (index: number) => {
-        setImages(prev => prev.map((img, i) => ({
+        setImages(prev => prev.map((img: ImageUploadData, i: number) => ({
             ...img,
             is_main: i === index && !img.toDelete
         })));
@@ -168,12 +241,12 @@ export default function ProductEditModal({
             main_image_id: null
         };
 
-        images.forEach(img => {
+        images.forEach((img: ImageUploadData) => {
             if (img.toDelete && img.id) {
                 imageUpdates.delete_image_ids!.push(img.id);
             } else if (img.isNew && !img.toDelete) {
                 const newImage: NewProductImage = {
-                    is_main: img.is_main
+                    is_main: img.is_main,
                 };
 
                 if (img.file) {
@@ -230,7 +303,7 @@ export default function ProductEditModal({
         }
 
         // Проверяем изменения категорий
-        const currentCategoryIds = product.categories?.map(cat => cat.id) || [];
+        const currentCategoryIds = product.categories?.map((cat: { id: number }) => cat.id) || [];
         const newCategoryIds = formData.category_ids.sort();
         const currentCategoryIdsSorted = currentCategoryIds.sort();
 
@@ -250,6 +323,32 @@ export default function ProductEditModal({
 
         console.log('Отправляем данные для обновления:', updateData);
         onSave(updateData);
+    };
+
+    // Функция для повторной загрузки изображений
+    const handleReloadImages = async () => {
+        if (!product.id) return;
+
+        setImagesLoading(true);
+        setImagesError(null);
+
+        try {
+            const productImages = await productsApi.getProductImages(product.id);
+            const imagesToSet = productImages.map((img: ProductImage) => ({
+                id: img.id,
+                url: img.url,
+                is_main: img.is_main || false,
+                isNew: false,
+                alt_text: img.alt_text
+            }));
+            setImages(imagesToSet);
+            setImagesError(null);
+        } catch (error) {
+            console.error('Ошибка повторной загрузки изображений:', error);
+            setImagesError('Не удалось загрузить изображения');
+        } finally {
+            setImagesLoading(false);
+        }
     };
 
     return (
@@ -300,163 +399,240 @@ export default function ProductEditModal({
 
                     {/* Изображения товара */}
                     <div className="space-y-4">
-                        <label className="block text-sm font-medium text-gray-700">
-                            Изображения товара
-                        </label>
-
-                        {/* Добавление изображений */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {/* Добавление по URL */}
-                            <div className="space-y-2">
-                                <label className="block text-xs font-medium text-gray-600">
-                                    Добавить по ссылке
-                                </label>
-                                <div className="flex gap-2">
-                                    <input
-                                        type="url"
-                                        value={imageUrl}
-                                        onChange={(e) => setImageUrl(e.target.value)}
-                                        placeholder="https://example.com/image.jpg"
-                                        className="flex-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={handleAddImageByUrl}
-                                        disabled={!imageUrl.trim()}
-                                        className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                        <LinkIcon className="h-4 w-4" />
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* Загрузка файлов */}
-                            <div className="space-y-2">
-                                <label className="block text-xs font-medium text-gray-600">
-                                    Загрузить с устройства
-                                </label>
-                                <div className="flex gap-2">
-                                    <input
-                                        ref={fileInputRef}
-                                        type="file"
-                                        accept="image/*"
-                                        multiple
-                                        onChange={handleFileUpload}
-                                        className="hidden"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => fileInputRef.current?.click()}
-                                        disabled={imageUploading}
-                                        className="flex-1 flex items-center justify-center gap-2 p-2 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-colors disabled:opacity-50"
-                                    >
-                                        {imageUploading ? (
-                                            <RefreshCw className="h-4 w-4 animate-spin" />
-                                        ) : (
-                                            <Upload className="h-4 w-4" />
-                                        )}
-                                        <span className="text-sm text-gray-600">
-                                            {imageUploading ? 'Загрузка...' : 'Выбрать файлы'}
-                                        </span>
-                                    </button>
-                                </div>
-                            </div>
+                        <div className="flex items-center justify-between">
+                            <label className="block text-sm font-medium text-gray-700">
+                                Изображения товара
+                            </label>
+                            {imagesError && (
+                                <button
+                                    type="button"
+                                    onClick={handleReloadImages}
+                                    className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                                >
+                                    <RefreshCw className="h-4 w-4" />
+                                    Перезагрузить
+                                </button>
+                            )}
                         </div>
 
-                        {/* Список изображений */}
-                        {images.length > 0 && (
-                            <div className="space-y-2">
-                                <div className="text-sm text-gray-600">
-                                    Изображения ({images.filter(img => !img.toDelete).length})
-                                </div>
-                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                                    {images.map((image, index) => (
-                                        <div
-                                            key={`${image.id || 'new'}-${index}`}
-                                            className={`relative group border-2 rounded-lg overflow-hidden ${image.toDelete
-                                                ? 'border-red-300 opacity-50'
-                                                : image.is_main
-                                                    ? 'border-yellow-400'
-                                                    : 'border-gray-300'
-                                                }`}
-                                        >
-                                            <div className="aspect-square relative">
-                                                <img
-                                                    src={image.url}
-                                                    alt={`Изображение ${index + 1}`}
-                                                    className="w-full h-full object-cover"
-                                                    onError={(e) => {
-                                                        console.error('Ошибка загрузки изображения:', image.url);
-                                                        const target = e.target as HTMLImageElement;
-                                                        target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZGRkIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPtCd0LXRgiDQuNC30L7QsdGA0LDQttC10L3QuNGPPC90ZXh0Pjwvc3ZnPg==';
-                                                    }}
-                                                />
-
-                                                {/* Оверлей с действиями */}
-                                                {!image.toDelete && (
-                                                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all duration-200 flex items-center justify-center">
-                                                        <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-1">
-                                                            {/* Предпросмотр */}
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setShowImagePreview(image.url)}
-                                                                className="p-1 bg-white text-gray-700 rounded hover:bg-gray-100"
-                                                                title="Предпросмотр"
-                                                            >
-                                                                <Eye className="h-3 w-3" />
-                                                            </button>
-
-                                                            {/* Установить главным */}
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => handleSetMainImage(index)}
-                                                                className={`p-1 rounded ${image.is_main
-                                                                    ? 'bg-yellow-400 text-white'
-                                                                    : 'bg-white text-gray-700 hover:bg-gray-100'
-                                                                    }`}
-                                                                title={image.is_main ? 'Главное изображение' : 'Сделать главным'}
-                                                            >
-                                                                {image.is_main ? <Star className="h-3 w-3" /> : <StarOff className="h-3 w-3" />}
-                                                            </button>
-
-                                                            {/* Удалить */}
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => handleDeleteImage(index)}
-                                                                className="p-1 bg-red-500 text-white rounded hover:bg-red-600"
-                                                                title="Удалить"
-                                                            >
-                                                                <Trash2 className="h-3 w-3" />
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                )}
-
-                                                {/* Бейдж главного изображения */}
-                                                {image.is_main && !image.toDelete && (
-                                                    <div className="absolute top-1 left-1 bg-yellow-400 text-white text-xs px-1 py-0.5 rounded">
-                                                        Главное
-                                                    </div>
-                                                )}
-
-                                                {/* Бейдж нового изображения */}
-                                                {image.isNew && !image.toDelete && (
-                                                    <div className="absolute top-1 right-1 bg-green-500 text-white text-xs px-1 py-0.5 rounded">
-                                                        Новое
-                                                    </div>
-                                                )}
-
-                                                {/* Бейдж удаления */}
-                                                {image.toDelete && (
-                                                    <div className="absolute inset-0 bg-red-500 bg-opacity-75 flex items-center justify-center">
-                                                        <span className="text-white text-xs font-medium">К удалению</span>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    ))}
+                        {/* Состояние загрузки изображений */}
+                        {imagesLoading && (
+                            <div className="flex items-center justify-center p-8 border-2 border-dashed border-gray-300 rounded-lg">
+                                <div className="text-center">
+                                    <RefreshCw className="h-8 w-8 animate-spin text-gray-400 mx-auto mb-2" />
+                                    <p className="text-sm text-gray-500">Загрузка изображений...</p>
                                 </div>
                             </div>
+                        )}
+
+                        {/* Ошибка загрузки изображений */}
+                        {imagesError && !imagesLoading && (
+                            <div className="flex items-center justify-center p-6 border-2 border-dashed border-red-300 rounded-lg bg-red-50">
+                                <div className="text-center">
+                                    <ImageIcon className="h-8 w-8 text-red-400 mx-auto mb-2" />
+                                    <p className="text-sm text-red-600 mb-2">{imagesError}</p>
+                                    <button
+                                        type="button"
+                                        onClick={handleReloadImages}
+                                        className="text-sm text-red-700 hover:text-red-900 underline"
+                                    >
+                                        Попробовать снова
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Добавление изображений - показываем только если изображения загружены */}
+                        {!imagesLoading && (
+                            <>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {/* Добавление по URL */}
+                                    <div className="space-y-2">
+                                        <label className="block text-xs font-medium text-gray-600">
+                                            Добавить по ссылке
+                                        </label>
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="url"
+                                                value={imageUrl}
+                                                onChange={(e) => setImageUrl(e.target.value)}
+                                                placeholder="https://example.com/image.jpg"
+                                                className="flex-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={handleAddImageByUrl}
+                                                disabled={!imageUrl.trim()}
+                                                className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                <LinkIcon className="h-4 w-4" />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Загрузка файлов */}
+                                    <div className="space-y-2">
+                                        <label className="block text-xs font-medium text-gray-600">
+                                            Загрузить с устройства
+                                        </label>
+                                        <div className="flex gap-2">
+                                            <input
+                                                ref={fileInputRef}
+                                                type="file"
+                                                accept="image/*"
+                                                multiple
+                                                onChange={handleFileUpload}
+                                                className="hidden"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => fileInputRef.current?.click()}
+                                                disabled={imageUploading}
+                                                className="flex-1 flex items-center justify-center gap-2 p-2 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-colors disabled:opacity-50"
+                                            >
+                                                {imageUploading ? (
+                                                    <RefreshCw className="h-4 w-4 animate-spin" />
+                                                ) : (
+                                                    <Upload className="h-4 w-4" />
+                                                )}
+                                                <span className="text-sm text-gray-600">
+                                                    {imageUploading ? 'Загрузка...' : 'Выбрать файлы'}
+                                                </span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Список изображений */}
+                                {images.length > 0 && (
+                                    <div className="space-y-2">
+                                        <div className="text-sm text-gray-600">
+                                            Изображения ({images.filter(img => !img.toDelete).length})
+                                        </div>
+                                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                            {images.map((image: ImageUploadData, index: number) => {
+                                                const imageKey = `${image.id || 'new'}-${index}`;
+
+                                                return (
+                                                    <div
+                                                        key={imageKey}
+                                                        className={`relative group border-2 rounded-lg overflow-hidden ${image.toDelete
+                                                            ? 'border-red-300 opacity-50'
+                                                            : image.is_main
+                                                                ? 'border-yellow-400'
+                                                                : 'border-gray-300'
+                                                            }`}
+                                                    >
+                                                        <div className="aspect-square relative bg-gray-100">
+                                                            {/* Простое изображение без сложной логики состояний */}
+                                                            <img
+                                                                src={image.url}
+                                                                className="w-full h-full object-cover"
+                                                                onLoad={() => {
+                                                                    console.log(`✅ Изображение загружено: ${image.url}`);
+                                                                }}
+                                                                onError={(e) => {
+                                                                    console.error(`❌ Ошибка загрузки изображения: ${image.url}`);
+                                                                    const target = e.target as HTMLImageElement;
+                                                                    target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii4+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxMiIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkVycm9yPC90ZXh0Pjwvc3ZnPg==';
+                                                                }}
+                                                            />
+
+                                                            {/* Тестовая кнопка для открытия изображения в новом окне */}
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => window.open(image.url, '_blank')}
+                                                                className="absolute bottom-1 right-1 bg-purple-500 text-white text-xs px-1 py-0.5 rounded"
+                                                                title="Открыть в новом окне"
+                                                            >
+                                                                🔗
+                                                            </button>
+
+                                                            {/* Оверлей с действиями - показываем всегда при наведении */}
+                                                            {!image.toDelete && (
+                                                                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all duration-200 flex items-center justify-center">
+                                                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-1">
+                                                                        {/* Предпросмотр */}
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                console.log(`🔍 Открываем предпросмотр: ${image.url}`);
+                                                                                setShowImagePreview(image.url);
+                                                                            }}
+                                                                            className="p-1 bg-white text-gray-700 rounded hover:bg-gray-100"
+                                                                            title="Предпросмотр"
+                                                                        >
+                                                                            <Eye className="h-3 w-3" />
+                                                                        </button>
+
+                                                                        {/* Установить главным */}
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleSetMainImage(index)}
+                                                                            className={`p-1 rounded ${image.is_main
+                                                                                ? 'bg-yellow-400 text-white'
+                                                                                : 'bg-white text-gray-700 hover:bg-gray-100'
+                                                                                }`}
+                                                                            title={image.is_main ? 'Главное изображение' : 'Сделать главным'}
+                                                                        >
+                                                                            {image.is_main ? <Star className="h-3 w-3" /> : <StarOff className="h-3 w-3" />}
+                                                                        </button>
+
+                                                                        {/* Удалить */}
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleDeleteImage(index)}
+                                                                            className="p-1 bg-red-500 text-white rounded hover:bg-red-600"
+                                                                            title="Удалить"
+                                                                        >
+                                                                            <Trash2 className="h-3 w-3" />
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+
+                                                            {/* Бейдж главного изображения */}
+                                                            {image.is_main && !image.toDelete && (
+                                                                <div className="absolute top-1 left-1 bg-yellow-400 text-white text-xs px-1 py-0.5 rounded">
+                                                                    Главное
+                                                                </div>
+                                                            )}
+
+                                                            {/* Бейдж нового изображения */}
+                                                            {image.isNew && !image.toDelete && (
+                                                                <div className="absolute top-1 right-1 bg-green-500 text-white text-xs px-1 py-0.5 rounded">
+                                                                    Новое
+                                                                </div>
+                                                            )}
+
+                                                            {/* Бейдж удаления */}
+                                                            {image.toDelete && (
+                                                                <div className="absolute inset-0 bg-red-500 bg-opacity-75 flex items-center justify-center">
+                                                                    <span className="text-white text-xs font-medium">К удалению</span>
+                                                                </div>
+                                                            )}
+
+                                                            {/* Отладочная информация */}
+                                                            <div className="absolute bottom-1 left-1 bg-black bg-opacity-50 text-white text-xs px-1 py-0.5 rounded max-w-full truncate">
+                                                                ID: {image.id || 'new'}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )
+                                            })})
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Сообщение если нет изображений */}
+                                {!imagesLoading && images.length === 0 && (
+                                    <div className="text-center p-6 border-2 border-dashed border-gray-300 rounded-lg">
+                                        <ImageIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                                        <p className="text-sm text-gray-600 mb-2">У этого товара пока нет изображений</p>
+                                        <p className="text-xs text-gray-500">Добавьте изображения используя формы выше</p>
+                                    </div>
+                                )}
+                            </>
                         )}
                     </div>
 
@@ -504,7 +680,7 @@ export default function ProductEditModal({
                                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                             >
                                 <option value="">Выберите бренд</option>
-                                {brands.map(brand => (
+                                {brands.map((brand: { id: number; name: string }) => (
                                     <option key={brand.id} value={brand.id}>
                                         {brand.name}
                                     </option>
@@ -553,7 +729,7 @@ export default function ProductEditModal({
                                 </div>
                             ) : (
                                 <div className="space-y-2">
-                                    {categories.map(category => (
+                                    {categories.map((category: { id: number; name: string; description?: string }) => (
                                         <label key={category.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
                                             <input
                                                 type="checkbox"

@@ -1,6 +1,13 @@
 // lib/api/scraper.ts
 
-import { ActiveTasksResponse, ScraperResponse, ScraperStatus } from "@/types/scraper";
+import {
+    ActiveTasksResponse,
+    ScraperResponse,
+    ScraperStatus,
+    SyncTasksResponse,
+    CleanupTasksResponse,
+    ReadinessResponse
+} from "@/types/scraper";
 import { apiClient } from "../api";
 
 
@@ -84,6 +91,26 @@ export const scraperApi = {
     async cancelAllTasks(): Promise<CancelTasksResponse> {
         const response = await apiClient.client.post('/api/v1/scraper/cancel-all-tasks');
         return response.data;
+    },
+
+    // НОВЫЕ МЕТОДЫ для синхронизации
+
+    // Синхронизировать счетчики задач
+    async syncTasks(): Promise<SyncTasksResponse> {
+        const response = await apiClient.client.post('/api/v1/scraper/sync-tasks');
+        return response.data;
+    },
+
+    // Очистить мои задачи
+    async cleanupMyTasks(): Promise<CleanupTasksResponse> {
+        const response = await apiClient.client.post('/api/v1/scraper/cleanup-my-tasks');
+        return response.data;
+    },
+
+    // Проверить готовность системы
+    async checkReadiness(): Promise<ReadinessResponse> {
+        const response = await apiClient.client.get('/api/v1/scraper/check-readiness');
+        return response.data;
     }
 };
 
@@ -129,25 +156,30 @@ export const scraperUtils = {
         });
     },
 
-    // Валидация URL для конкретного типа скрайпера
+    // ИСПРАВЛЕННАЯ валидация URL для конкретного типа скрайпера
     validateUrls(type: ScraperType, urls: string[]): { valid: string[], invalid: string[] } {
         const valid: string[] = [];
         const invalid: string[] = [];
 
-        // ИСПРАВЛЕННЫЕ паттерны в соответствии с реальными URL структурами сайтов
+        // ИСПРАВЛЕННЫЕ паттерны валидации URL
         const patterns = {
-            labirint: /^https:\/\/labirintdoors\.ru\/(katalog|kategoria)\//,
-            bunker: /^https:\/\/bunkerdoors\.ru\/(prod|catalog)\//,
-            intecron: /^https:\/\/intecron-msk\.ru\/catalog\//,
-            'as-doors': /^https:\/\/as-doors\.ru\/(onstock|catalog)\//
+            // Лабиринт: /katalog/ или /kategoria/
+            labirint: /^https:\/\/labirintdoors\.ru\/(katalog|kategoria)\/.*/,
+            // Bunker: /prod/ или /catalog/
+            bunker: /^https:\/\/bunkerdoors\.ru\/(prod|catalog)\/.*/,
+            // Интекрон: /catalog/
+            intecron: /^https:\/\/intecron-msk\.ru\/catalog\/.*/,
+            // AS-Doors: /onstock/ или /catalog/
+            'as-doors': /^https:\/\/as-doors\.ru\/(onstock|catalog)\/.*/
         };
 
         const pattern = patterns[type];
 
         urls.forEach(url => {
-            if (url.trim() && pattern.test(url)) {
+            const trimmedUrl = url.trim();
+            if (trimmedUrl && pattern.test(trimmedUrl)) {
                 valid.push(url);
-            } else if (url.trim()) {
+            } else if (trimmedUrl) {
                 invalid.push(url);
             }
         });
@@ -155,12 +187,12 @@ export const scraperUtils = {
         return { valid, invalid };
     },
 
-
     getExampleUrls(type: ScraperType): string[] {
         const examples = {
             labirint: [
                 'https://labirintdoors.ru/katalog/royal',
-                'https://labirintdoors.ru/katalog/classic'
+                'https://labirintdoors.ru/katalog/classic',
+                'https://labirintdoors.ru/katalog/loft'
             ],
             bunker: [
                 'https://bunkerdoors.ru/prod/bunker-hit/bn-02',
@@ -169,11 +201,13 @@ export const scraperUtils = {
             ],
             intecron: [
                 'https://intecron-msk.ru/catalog/intekron/sparta_white/',
-                'https://intecron-msk.ru/catalog/intekron/sparta_black/'
+                'https://intecron-msk.ru/catalog/intekron/sparta_black/',
+                'https://intecron-msk.ru/catalog/intekron/'
             ],
             'as-doors': [
                 'https://as-doors.ru/onstock/',
-                'https://as-doors.ru/catalog/metallicheskie-dveri/'
+                'https://as-doors.ru/catalog/metallicheskie-dveri/',
+                'https://as-doors.ru/catalog/vxodnye-dveri/'
             ]
         };
 
@@ -183,9 +217,9 @@ export const scraperUtils = {
     getPlaceholder(type: ScraperType): string {
         const placeholders = {
             labirint: 'https://labirintdoors.ru/katalog/...',
-            bunker: 'https://bunkerdoors.ru/prod/...',  // prod вместо catalog
+            bunker: 'https://bunkerdoors.ru/prod/...',
             intecron: 'https://intecron-msk.ru/catalog/intekron/...',
-            'as-doors': 'https://as-doors.ru/onstock/...'  // onstock вместо catalog
+            'as-doors': 'https://as-doors.ru/onstock/...'
         };
 
         return placeholders[type] || '';

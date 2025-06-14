@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/auth';
 import { scraperApi, scraperUtils, ScraperType } from '@/lib/api/scraper';
 import {
@@ -13,7 +13,10 @@ import {
     RefreshCw,
     ExternalLink,
     Trash2,
-    Activity
+    Activity,
+    RotateCw,  // Заменяем Sync на RotateCw
+    CheckCircle,
+    XCircle
 } from 'lucide-react';
 import { useToast } from '@/lib/contexts/ToastContext';
 
@@ -84,11 +87,27 @@ interface Task {
     error?: string;
 }
 
+interface SystemStatus {
+    ready: boolean;
+    user_tasks: number;
+    max_user_tasks: number;
+    total_tasks: number;
+    max_total_tasks: number;
+    can_start_task: boolean;
+    issues: Array<{
+        type: string;
+        message: string;
+        action: string;
+    }>;
+}
+
 export default function ScraperPage() {
     const { isSuperuser } = useAuth();
     const { showToast } = useToast();
     const [activeTasks, setActiveTasks] = useState<Task[]>([]);
     const [loading, setLoading] = useState<{ [key: string]: boolean }>({});
+    const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
+    const [syncing, setSyncing] = useState<boolean>(false);
 
     // Состояние для каждого скрайпера
     const [scraperStates, setScraperStates] = useState<{ [key: string]: { urls: string[], showExamples: boolean } }>(() => {
@@ -98,6 +117,122 @@ export default function ScraperPage() {
         });
         return initialStates;
     });
+
+    // Загрузка статуса системы
+    const loadSystemStatus = useCallback(async () => {
+        try {
+            const response = await scraperApi.checkReadiness();
+            setSystemStatus({
+                ready: response.ready,
+                user_tasks: response.limits.user_tasks,
+                max_user_tasks: response.limits.max_user_tasks,
+                total_tasks: response.limits.total_tasks,
+                max_total_tasks: response.limits.max_total_tasks,
+                can_start_task: response.limits.can_start_task,
+                issues: response.issues
+            });
+
+            // Автоматически очищаем локальные задачи если на сервере их нет
+            if (response.limits.total_tasks === 0 && activeTasks.length > 0) {
+                console.log('No active tasks on server, clearing local tasks');
+                setActiveTasks([]);
+                showToast('info', 'Список задач синхронизирован с сервером');
+            }
+        } catch (error) {
+            console.error('Error loading system status:', error);
+        }
+    }, [activeTasks.length, showToast]);
+
+    // Проверка статусов активных задач
+    const checkTaskStatuses = useCallback(async () => {
+        const tasksToUpdate = activeTasks.filter(task =>
+            task.taskId && (task.status === 'running' || task.status === 'pending')
+        );
+
+        for (const task of tasksToUpdate) {
+            try {
+                const status = await scraperApi.getScraperStatus(task.taskId!);
+
+                setActiveTasks(prev => prev.map(t => {
+                    if (t.id === task.id) {
+                        return {
+                            ...t,
+                            status: status.status === 'SUCCESS' ? 'completed' :
+                                status.status === 'FAILURE' ? 'failed' :
+                                    status.status === 'PENDING' ? 'pending' : 'running',
+                            progress: status.progress,
+                            result: status.result,
+                            error: status.error
+                        };
+                    }
+                    return t;
+                }));
+
+                // Если задача завершена, показываем уведомление
+                if (status.status === 'SUCCESS' || status.status === 'FAILURE') {
+                    const taskName = task.type;
+                    if (status.status === 'SUCCESS') {
+                        showToast('success', `Задача "${taskName}" завершена успешно`);
+                    } else {
+                        showToast('error', `Задача "${taskName}" завершилась с ошибкой`);
+                    }
+                }
+            } catch (error) {
+                console.error(`Error checking status for task ${task.id}:`, error);
+            }
+        }
+    }, [activeTasks, showToast]);
+
+    // Автоматическое обновление статусов
+    useEffect(() => {
+        // Загружаем статус системы при загрузке
+        loadSystemStatus();
+
+        // Периодическое обновление
+        const interval = setInterval(() => {
+            loadSystemStatus();
+            checkTaskStatuses();
+        }, 10000); // Каждые 10 секунд
+
+        return () => clearInterval(interval);
+    }, [loadSystemStatus, checkTaskStatuses]);
+
+    // Ручная синхронизация с сервером
+    const syncWithServer = async () => {
+        setSyncing(true);
+        try {
+            const syncResult = await scraperApi.syncTasks();
+            await loadSystemStatus();
+
+            showToast('success', `Синхронизация завершена. Задач пользователя: ${syncResult.after.user_tasks}, всего: ${syncResult.after.total_tasks}`);
+
+            // Если на сервере нет активных задач, очищаем локальные
+            if (syncResult.after.total_tasks === 0) {
+                setActiveTasks([]);
+            }
+        } catch (error) {
+            console.error('Error syncing with server:', error);
+            showToast('error', 'Ошибка синхронизации с сервером');
+        } finally {
+            setSyncing(false);
+        }
+    };
+
+    // Очистить мои задачи
+    const cleanupMyTasks = async () => {
+        setSyncing(true);
+        try {
+            const result = await scraperApi.cleanupMyTasks();
+            await loadSystemStatus();
+            setActiveTasks([]); // Очищаем локальные задачи
+            showToast('success', `Очищено ${result.cleaned_tasks} задач`);
+        } catch (error) {
+            console.error('Error cleaning up tasks:', error);
+            showToast('error', 'Ошибка очистки задач');
+        } finally {
+            setSyncing(false);
+        }
+    };
 
     // Добавить URL
     const addUrl = (scraperId: string) => {
@@ -148,8 +283,20 @@ export default function ScraperPage() {
         }
     };
 
-    // ОБНОВЛЕННАЯ функция запуска скрайпера с реальными API вызовами
+    // ОБНОВЛЕННАЯ функция запуска скрайпера с проверкой готовности
     const startScraper = async (scraperId: ScraperType) => {
+        // Сначала проверяем готовность системы
+        await loadSystemStatus();
+
+        if (systemStatus && !systemStatus.can_start_task) {
+            if (systemStatus.issues.length > 0) {
+                showToast('warning', systemStatus.issues[0].message);
+                return;
+            }
+            showToast('warning', 'Система не готова к запуску новых задач');
+            return;
+        }
+
         const scraper = SCRAPER_TYPES.find(s => s.id === scraperId);
         if (!scraper) return;
 
@@ -178,14 +325,13 @@ export default function ScraperPage() {
         setLoading(prev => ({ ...prev, [scraperId]: true }));
 
         try {
-            // РЕАЛЬНЫЙ API вызов вместо симуляции
             console.log(`Starting ${scraper.name} scraper with URLs:`, valid);
             const response = await scraperApi.startScraper(scraperId, valid);
 
             // Добавляем задачу в список активных
             const newTask: Task = {
                 id: `task_${Date.now()}`,
-                taskId: response.task_id, // Сохраняем API task ID
+                taskId: response.task_id,
                 type: scraper.name,
                 status: 'running',
                 urls: valid,
@@ -201,10 +347,40 @@ export default function ScraperPage() {
                 [scraperId]: { ...prev[scraperId], urls: [''] }
             }));
 
-            alert(`Скрайпер "${scraper.name}" запущен успешно!\nЗадача: ${response.task_id}`);
+            // Обновляем статус системы
+            await loadSystemStatus();
+
+            showToast('success', `Скрайпер "${scraper.name}" запущен успешно!`);
 
         } catch (error: unknown) {
             console.error('Error starting scraper:', error);
+
+            // Обрабатываем ошибки лимитов
+            if (error && typeof error === 'object' && 'response' in error) {
+                const axiosError = error as {
+                    response?: {
+                        data?: { detail?: string };
+                        status?: number;
+                    };
+                };
+                if (axiosError.response?.status === 429) {
+                    showToast('warning', 'Превышен лимит задач. Дождитесь завершения текущих задач или используйте синхронизацию.');
+                    return;
+                }
+
+                // Обрабатываем другие HTTP ошибки
+                if (axiosError.response?.data?.detail) {
+                    showToast('error', axiosError.response.data.detail);
+                    return;
+                }
+            }
+
+            // Обрабатываем обычные ошибки
+            if (error instanceof Error) {
+                showToast('error', `Ошибка запуска скрайпера: ${error.message}`);
+            } else {
+                showToast('error', 'Неизвестная ошибка при запуске скрайпера');
+            }
         } finally {
             setLoading(prev => ({ ...prev, [scraperId]: false }));
         }
@@ -233,6 +409,24 @@ ${status.result ? `Результат: ${JSON.stringify(status.result, null, 2)}
             alert(details);
         } catch (error: unknown) {
             console.error('Error getting task details:', error);
+
+            let errorMessage = 'Ошибка получения данных о задаче';
+
+            if (error instanceof Error) {
+                errorMessage = error.message;
+            } else if (error && typeof error === 'object' && 'response' in error) {
+                const axiosError = error as {
+                    response?: {
+                        data?: { detail?: string };
+                        status?: number;
+                    };
+                };
+                if (axiosError.response?.data?.detail) {
+                    errorMessage = axiosError.response.data.detail;
+                }
+            }
+
+            alert(errorMessage);
         }
     };
 
@@ -283,6 +477,7 @@ ${status.result ? `Результат: ${JSON.stringify(status.result, null, 2)}
             const response = await scraperApi.cancelAllTasks();
             showToast('success', `Отменено задач: ${response.cancelled_tasks}`);
             setActiveTasks([]); // Очищаем локальный список
+            await loadSystemStatus(); // Обновляем статус
         } catch (error: unknown) {
             console.error('Error cancelling tasks:', error);
 
@@ -307,6 +502,7 @@ ${status.result ? `Результат: ${JSON.stringify(status.result, null, 2)}
             showToast('error', errorMessage);
         }
     };
+
     const toggleExamples = (scraperId: string) => {
         setScraperStates(prev => ({
             ...prev,
@@ -330,25 +526,80 @@ ${status.result ? `Результат: ${JSON.stringify(status.result, null, 2)}
                         Парсинг товаров из внешних каталогов
                     </p>
                 </div>
-                {isSuperuser && (
-                    <div className="flex gap-2">
-                        <button
-                            onClick={loadActiveTasks}
-                            className="flex items-center gap-2 px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
-                        >
-                            <Activity className="h-4 w-4" />
-                            Активные задачи ({activeTasks.length})
-                        </button>
-                        <button
-                            onClick={cancelAllTasks}
-                            className="flex items-center gap-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
-                        >
-                            <Square className="h-4 w-4" />
-                            Отменить все
-                        </button>
-                    </div>
-                )}
+
+                {/* Кнопки управления */}
+                <div className="flex flex-wrap gap-2">
+                    {/* Синхронизация */}
+                    <button
+                        onClick={syncWithServer}
+                        disabled={syncing}
+                        className="flex items-center gap-2 px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors disabled:opacity-50"
+                    >
+                        <RotateCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
+                        Синхронизировать
+                    </button>
+
+                    {/* Очистить мои задачи */}
+                    <button
+                        onClick={cleanupMyTasks}
+                        disabled={syncing}
+                        className="flex items-center gap-2 px-3 py-2 bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200 transition-colors disabled:opacity-50"
+                    >
+                        <Trash2 className="h-4 w-4" />
+                        Очистить мои задачи
+                    </button>
+
+                    {isSuperuser && (
+                        <>
+                            <button
+                                onClick={loadActiveTasks}
+                                className="flex items-center gap-2 px-3 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
+                            >
+                                <Activity className="h-4 w-4" />
+                                Активные задачи
+                            </button>
+                            <button
+                                onClick={cancelAllTasks}
+                                className="flex items-center gap-2 px-3 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
+                            >
+                                <Square className="h-4 w-4" />
+                                Отменить все
+                            </button>
+                        </>
+                    )}
+                </div>
             </div>
+
+            {/* Статус системы */}
+            {systemStatus && (
+                <div className={`rounded-lg border p-4 ${systemStatus.ready ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200'}`}>
+                    <div className="flex items-center gap-3">
+                        {systemStatus.ready ? (
+                            <CheckCircle className="h-5 w-5 text-green-600" />
+                        ) : (
+                            <XCircle className="h-5 w-5 text-yellow-600" />
+                        )}
+                        <div className="flex-1">
+                            <div className="flex items-center gap-4 text-sm">
+                                <span className={`font-medium ${systemStatus.ready ? 'text-green-900' : 'text-yellow-900'}`}>
+                                    {systemStatus.ready ? 'Система готова' : 'Система не готова'}
+                                </span>
+                                <span className="text-gray-600">
+                                    Ваши задачи: {systemStatus.user_tasks}/{systemStatus.max_user_tasks}
+                                </span>
+                                <span className="text-gray-600">
+                                    Всего задач: {systemStatus.total_tasks}/{systemStatus.max_total_tasks}
+                                </span>
+                            </div>
+                            {systemStatus.issues.length > 0 && (
+                                <div className="mt-1 text-sm text-yellow-800">
+                                    {systemStatus.issues.map(issue => issue.message).join('; ')}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Активные задачи */}
             {activeTasks.length > 0 && (
@@ -392,6 +643,11 @@ ${status.result ? `Результат: ${JSON.stringify(status.result, null, 2)}
                                     {task.error && (
                                         <div className="text-sm text-red-600 mt-1">
                                             Ошибка: {task.error}
+                                        </div>
+                                    )}
+                                    {task.result && task.status === 'completed' && (
+                                        <div className="text-sm text-green-600 mt-1">
+                                            ✓ {task.result.message || `Обработано: ${task.result.processed_items || 0} товаров`}
                                         </div>
                                     )}
                                 </div>
@@ -498,10 +754,10 @@ ${status.result ? `Результат: ${JSON.stringify(status.result, null, 2)}
                         {/* Кнопка запуска */}
                         <button
                             onClick={() => startScraper(scraper.id)}
-                            disabled={loading[scraper.id]}
+                            disabled={Boolean(loading[scraper.id]) || (systemStatus ? !systemStatus.can_start_task : false)}
                             className={`w-full flex items-center justify-center gap-2 px-4 py-3 ${scraper.color} text-white rounded-lg hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed`}
                         >
-                            {loading[scraper.id] ? (
+                            {Boolean(loading[scraper.id]) ? (
                                 <>
                                     <RefreshCw className="h-4 w-4 animate-spin" />
                                     Запуск...
@@ -530,8 +786,9 @@ ${status.result ? `Результат: ${JSON.stringify(status.result, null, 2)}
                             <li>• Нажмите &quot;Запустить парсинг&quot; для начала обработки</li>
                             <li>• Отслеживайте прогресс в разделе &quot;Активные задачи&quot;</li>
                             <li>• Максимум 10 URL за одну задачу</li>
-                            <li>• Максимум {isSuperuser ? '5' : '2'} одновременных задач</li>
-                            <li>• Используйте кнопку &quot;Подробности&quot; для просмотра статуса задачи</li>
+                            <li>• Максимум {systemStatus?.max_user_tasks || '2'} одновременных задач</li>
+                            <li>• Используйте &quot;Синхронизировать&quot; если задачи не обновляются</li>
+                            <li>• &quot;Очистить мои задачи&quot; для сброса счетчиков</li>
                         </ul>
                     </div>
                 </div>
