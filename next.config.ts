@@ -2,8 +2,6 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
 
-  // Базовый путь для админки
-  basePath: '/admin',
 
   // Для корректной работы со слэшами
   trailingSlash: true,
