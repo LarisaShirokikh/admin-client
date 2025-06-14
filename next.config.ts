@@ -1,12 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-// Для работы в Docker
-  output: 'standalone',
-  
+
   // Базовый путь для админки
   basePath: '/admin',
-  
+
   // Для корректной работы со слэшами
   trailingSlash: true,
 
