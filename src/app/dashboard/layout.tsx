@@ -16,7 +16,8 @@ import {
     Menu,
     X,
     User,
-    Download
+    Download,
+    Contact
 } from 'lucide-react';
 import { ToastProvider } from '@/lib/contexts/ToastContext';
 
@@ -28,6 +29,7 @@ const navigation = [
     { name: 'Скрайпер', href: '/dashboard/scraper', icon: Download },
     { name: 'Каталоги', href: '/dashboard/catalogs', icon: Layers },
     { name: 'Видео', href: '/dashboard/videos', icon: Video },
+    { name: 'Посты', href: '/dashboard/posts', icon: Contact },
     { name: 'Настройки', href: '/dashboard/settings', icon: Settings },
 ];
 
