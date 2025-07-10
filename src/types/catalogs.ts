@@ -20,3 +20,12 @@ export interface CatalogUpdate {
     description?: string;
     is_active?: boolean;
 }
+
+export interface CatalogStats {
+    total_catalogs: number;
+    active_catalogs: number;
+    inactive_catalogs: number;
+    last_updated: string;
+    requested_by: string;
+    user_role: string;
+}
