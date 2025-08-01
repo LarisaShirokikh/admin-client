@@ -291,13 +291,46 @@ export const productsApi = {
 
     // Массовое изменение цен
     async bulkUpdatePrices(data: PriceUpdateData): Promise<BulkPriceUpdateResponse> {
-        const response = await apiClient.client.post('/api/v1/products/bulk-update-prices', data);
+        const snakeCaseData = {
+            scope: data.scope,
+            scope_id: data.scopeId,
+            price_type: data.priceType,
+            change_type: data.changeType,
+            change_value: data.changeValue,
+            direction: data.direction,
+            only_active: data.onlyActive,
+            only_in_stock: data.onlyInStock,
+            price_range: data.priceRange ? {
+                from: data.priceRange.from,
+                to: data.priceRange.to
+            } : undefined
+        };
+        const response = await apiClient.client.post('/api/v1/products/bulk-update-prices', snakeCaseData);
         return response.data;
     },
 
     // Получение количества товаров для оценки изменения цен
     async getProductsCountForPriceUpdate(data: Partial<PriceUpdateData>): Promise<{ count: number }> {
-        const response = await apiClient.client.post('/api/v1/products/count-for-price-update', data);
+        // Преобразуем camelCase в snake_case
+        const snakeCaseData: any = {
+            scope: data.scope
+        };
+
+        if (data.scopeId !== undefined) snakeCaseData.scope_id = data.scopeId;
+        if (data.priceType) snakeCaseData.price_type = data.priceType;
+        if (data.changeType) snakeCaseData.change_type = data.changeType;
+        if (data.changeValue !== undefined) snakeCaseData.change_value = data.changeValue;
+        if (data.direction) snakeCaseData.direction = data.direction;
+        if (data.onlyActive !== undefined) snakeCaseData.only_active = data.onlyActive;
+        if (data.onlyInStock !== undefined) snakeCaseData.only_in_stock = data.onlyInStock;
+        if (data.priceRange) {
+            snakeCaseData.price_range = {
+                from: data.priceRange.from,
+                to: data.priceRange.to
+            };
+        }
+
+        const response = await apiClient.client.post('/api/v1/products/count-for-price-update', snakeCaseData);
         return response.data;
     },
 
