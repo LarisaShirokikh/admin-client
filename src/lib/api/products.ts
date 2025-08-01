@@ -17,6 +17,22 @@ import {
 } from "@/types/products";
 import { apiClient } from "../api";
 
+
+interface PriceCountRequestPayload {
+    scope?: string;
+    scope_id?: number;
+    price_type?: string;
+    change_type?: string;
+    change_value?: number;
+    direction?: string;
+    only_active?: boolean;
+    only_in_stock?: boolean;
+    price_range?: {
+        from?: number;
+        to?: number;
+    };
+}
+
 // API Methods
 export const productsApi = {
     // ========== ОСНОВНЫЕ CRUD ОПЕРАЦИИ ==========
@@ -312,10 +328,9 @@ export const productsApi = {
     // Получение количества товаров для оценки изменения цен
     async getProductsCountForPriceUpdate(data: Partial<PriceUpdateData>): Promise<{ count: number }> {
         // Преобразуем camelCase в snake_case
-        const snakeCaseData: any = {
-            scope: data.scope
-        };
+        const snakeCaseData: PriceCountRequestPayload = {};
 
+        if (data.scope) snakeCaseData.scope = data.scope;
         if (data.scopeId !== undefined) snakeCaseData.scope_id = data.scopeId;
         if (data.priceType) snakeCaseData.price_type = data.priceType;
         if (data.changeType) snakeCaseData.change_type = data.changeType;
