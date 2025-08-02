@@ -17,22 +17,6 @@ import {
 } from "@/types/products";
 import { apiClient } from "../api";
 
-
-interface PriceCountRequestPayload {
-    scope?: string;
-    scope_id?: number;
-    price_type?: string;
-    change_type?: string;
-    change_value?: number;
-    direction?: string;
-    only_active?: boolean;
-    only_in_stock?: boolean;
-    price_range?: {
-        from?: number;
-        to?: number;
-    };
-}
-
 // API Methods
 export const productsApi = {
     // ========== ОСНОВНЫЕ CRUD ОПЕРАЦИИ ==========
@@ -297,59 +281,30 @@ export const productsApi = {
         }
     },
 
-    // ========== МАССОВЫЕ ОПЕРАЦИИ ==========
-
-    // Массовое обновление продуктов
     async batchUpdateProducts(data: BatchUpdateRequest): Promise<BatchUpdateResponse> {
         const response = await apiClient.client.patch('/api/v1/products/batch', data);
         return response.data;
     },
 
-    // Массовое изменение цен
     async bulkUpdatePrices(data: PriceUpdateData): Promise<BulkPriceUpdateResponse> {
-        const snakeCaseData = {
-            scope: data.scope,
-            scope_id: data.scopeId,
-            price_type: data.priceType,
-            change_type: data.changeType,
-            change_value: data.changeValue,
-            direction: data.direction,
-            only_active: data.onlyActive,
-            only_in_stock: data.onlyInStock,
-            price_range: data.priceRange ? {
-                from: data.priceRange.from,
-                to: data.priceRange.to
-            } : undefined
-        };
-        const response = await apiClient.client.post('/api/v1/products/bulk-update-prices', snakeCaseData);
+        console.log('Bulk update prices data:', data);
+        if (!data.scope || !data.price_type || !data.change_type || !data.direction) {
+            throw new Error('Не все обязательные поля заполнены');
+        }
+        if (data.change_value <= 0) {
+            throw new Error('Значение изменения должно быть больше 0');
+        }
+
+        const response = await apiClient.client.post('/api/v1/products/bulk-update-prices', data);
         return response.data;
     },
 
     // Получение количества товаров для оценки изменения цен
     async getProductsCountForPriceUpdate(data: Partial<PriceUpdateData>): Promise<{ count: number }> {
-        // Преобразуем camelCase в snake_case
-        const snakeCaseData: PriceCountRequestPayload = {};
-
-        if (data.scope) snakeCaseData.scope = data.scope;
-        if (data.scopeId !== undefined) snakeCaseData.scope_id = data.scopeId;
-        if (data.priceType) snakeCaseData.price_type = data.priceType;
-        if (data.changeType) snakeCaseData.change_type = data.changeType;
-        if (data.changeValue !== undefined) snakeCaseData.change_value = data.changeValue;
-        if (data.direction) snakeCaseData.direction = data.direction;
-        if (data.onlyActive !== undefined) snakeCaseData.only_active = data.onlyActive;
-        if (data.onlyInStock !== undefined) snakeCaseData.only_in_stock = data.onlyInStock;
-        if (data.priceRange) {
-            snakeCaseData.price_range = {
-                from: data.priceRange.from,
-                to: data.priceRange.to
-            };
-        }
-
-        const response = await apiClient.client.post('/api/v1/products/count-for-price-update', snakeCaseData);
+        const response = await apiClient.client.post('/api/v1/products/count-for-price-update', data);
         return response.data;
     },
 
-    // ========== УПРАВЛЕНИЕ СТАТУСОМ ==========
 
     // Переключить статус продукта
     async toggleProductStatus(id: number): Promise<ProductListItem> {

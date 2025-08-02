@@ -94,7 +94,6 @@ export default function ProductsPage() {
     const [showPriceBulkEdit, setShowPriceBulkEdit] = useState(false);
     const [priceBulkEditLoading, setPriceBulkEditLoading] = useState(false);
 
-    // Мемоизируем filters чтобы избежать мутаций
     const memoizedFilters = useMemo(() => ({
         brand_id: filters.brand_id,
         catalog_id: filters.catalog_id,
@@ -253,10 +252,18 @@ export default function ProductsPage() {
     const handlePriceBulkEditSave = async (data: PriceUpdateData) => {
         setPriceBulkEditLoading(true);
         try {
+            console.log('🔍 Sending bulk price update:', data);
             const response = await productsApi.bulkUpdatePrices(data);
 
-            handleClosePriceBulkEdit();
+            console.log('📨 Received response:', response);
+            console.log('📊 Response details:', {
+                success_count: response.success_count,
+                failed_count: response.failed_count,
+                total_updated: response.success_count + response.failed_count,
+                updated_products_length: response.updated_products?.length
+            });
 
+            handleClosePriceBulkEdit();
             forceRefresh();
             await loadStats();
 
@@ -267,7 +274,7 @@ export default function ProductsPage() {
             }
 
         } catch (error: unknown) {
-            console.error('Ошибка при массовом изменении цен:', error);
+            console.error('❌ Bulk price update error:', error);
             showToast('error', handleApiError(error, 'Ошибка при изменении цен'));
         } finally {
             setPriceBulkEditLoading(false);
@@ -278,16 +285,15 @@ export default function ProductsPage() {
         setEditingProduct(product);
         setShowEditModal(true);
         console.log('Редактирование товара:', product);
-        // Справочники уже загружены при инициализации
     };
 
-    // Обработчик закрытия редактирования одного товара
+
     const handleCloseEdit = () => {
         setShowEditModal(false);
         setEditingProduct(null);
     };
 
-    // Обработчик сохранения изменений одного товара
+
     const handleSaveProduct = async (updatedData: ProductUpdate) => {
         if (!editingProduct) return;
 
@@ -315,7 +321,7 @@ export default function ProductsPage() {
         }
     };
 
-    // Обработчик открытия модального окна
+
     const handleOpenBulkEdit = async () => {
         const commonCategoryIds = getCommonCategories();
         setBulkEditData({
@@ -341,7 +347,7 @@ export default function ProductsPage() {
         }));
     };
 
-    // Обработчик закрытия модального окна
+
     const handleCloseBulkEdit = () => {
         setShowBulkEditModal(false);
         setBulkEditData({
@@ -367,7 +373,6 @@ export default function ProductsPage() {
 
         setBulkEditLoading(true);
         try {
-            // Подготавливаем данные для отправки (только заполненные поля)
             const updateData: Partial<ProductUpdate> = {};
 
             if (bulkEditData.price) updateData.price = Number(bulkEditData.price);
@@ -377,28 +382,23 @@ export default function ProductsPage() {
             if (bulkEditData.category_ids.length > 0) updateData.category_ids = bulkEditData.category_ids;
             if (bulkEditData.brand_id) updateData.brand_id = Number(bulkEditData.brand_id);
 
-            // Используем исправленный batch endpoint
             const batchResponse = await productsApi.batchUpdateProducts({
                 product_ids: selectedProducts,
                 update_data: updateData
             });
 
-            // Перезагружаем данные
             forceRefresh();
             await loadStats();
 
-            // Закрываем модальное окно и сбрасываем выбор
             handleCloseBulkEdit();
             setSelectedProducts([]);
             setSelectAll(false);
 
-            // Показываем результат операции
             if (batchResponse.failed_count > 0) {
                 showToast('warning',
                     `Обновлено ${batchResponse.success_count} из ${selectedProducts.length} продуктов. ${batchResponse.failed_count} не удалось обновить.`
                 );
 
-                // Детализированное логирование ошибок
                 console.log('Ошибки обновления:');
                 batchResponse.failed_products.forEach(error => {
                     console.log(`Продукт ${error.product_id}: ${error.error}`);
@@ -418,12 +418,10 @@ export default function ProductsPage() {
     const getCommonCategories = useCallback(() => {
         if (selectedProducts.length === 0) return [];
 
-        // Получаем продукты по выбранным ID
         const selectedProductsData = products.filter(p => selectedProducts.includes(p.id));
 
         if (selectedProductsData.length === 0) return [];
 
-        // Если выбран один продукт, возвращаем все его категории
         if (selectedProductsData.length === 1) {
             return selectedProductsData[0].categories?.map(cat => cat.id) || [];
         }

@@ -1,8 +1,13 @@
 import { useState, useEffect } from 'react';
 import { XCircle, RefreshCw, TrendingUp, TrendingDown, DollarSign, Percent, AlertTriangle } from 'lucide-react';
-import { ChangeType, Direction, PriceBulkEditModalProps, PriceScope, PriceType, PriceUpdateData } from '@/types/products';
-
-
+import {
+    ChangeType,
+    Direction,
+    PriceBulkEditModalProps,
+    PriceScope,
+    PriceType,
+    PriceUpdateData
+} from '@/types/products';
 
 export default function PriceBulkEditModal({
     isOpen,
@@ -15,13 +20,14 @@ export default function PriceBulkEditModal({
 }: PriceBulkEditModalProps) {
     const [formData, setFormData] = useState<PriceUpdateData>({
         scope: 'all',
-        priceType: 'main',
-        changeType: 'percent',
-        changeValue: 0,
+        scope_id: undefined,
+        price_type: 'main',
+        change_type: 'percent',
+        change_value: 0,
         direction: 'increase',
-        onlyActive: true,
-        onlyInStock: false,
-        priceRange: {}
+        only_active: true,
+        only_in_stock: false,
+        price_range: {}
     });
 
     const [estimatedCount, setEstimatedCount] = useState<number | null>(null);
@@ -32,13 +38,14 @@ export default function PriceBulkEditModal({
         if (isOpen) {
             setFormData({
                 scope: 'all',
-                priceType: 'main',
-                changeType: 'percent',
-                changeValue: 0,
+                scope_id: undefined,
+                price_type: 'main',
+                change_type: 'percent',
+                change_value: 0,
                 direction: 'increase',
-                onlyActive: true,
-                onlyInStock: false,
-                priceRange: {}
+                only_active: true,
+                only_in_stock: false,
+                price_range: {}
             });
             setEstimatedCount(null);
         }
@@ -47,7 +54,7 @@ export default function PriceBulkEditModal({
     if (!isOpen) return null;
 
     const handleSubmit = () => {
-        if (formData.changeValue <= 0) {
+        if (formData.change_value <= 0) {
             alert('Значение изменения должно быть больше 0');
             return;
         }
@@ -64,14 +71,14 @@ export default function PriceBulkEditModal({
             // Симуляция подсчета
             let count = 1250; // Базовое количество
 
-            if (formData.scope === 'brand' && formData.scopeId) count = Math.floor(count * 0.15);
-            if (formData.scope === 'category' && formData.scopeId) count = Math.floor(count * 0.25);
-            if (formData.scope === 'catalog' && formData.scopeId) count = Math.floor(count * 0.3);
+            if (formData.scope === 'brand' && formData.scope_id) count = Math.floor(count * 0.15);
+            if (formData.scope === 'category' && formData.scope_id) count = Math.floor(count * 0.25);
+            if (formData.scope === 'catalog' && formData.scope_id) count = Math.floor(count * 0.3);
 
-            if (formData.onlyActive) count = Math.floor(count * 0.8);
-            if (formData.onlyInStock) count = Math.floor(count * 0.7);
+            if (formData.only_active) count = Math.floor(count * 0.8);
+            if (formData.only_in_stock) count = Math.floor(count * 0.7);
 
-            if (formData.priceRange?.from || formData.priceRange?.to) {
+            if (formData.price_range?.from || formData.price_range?.to) {
                 count = Math.floor(count * 0.6);
             }
 
@@ -88,15 +95,15 @@ export default function PriceBulkEditModal({
         const basePrice = 1000;
         let newPrice = basePrice;
 
-        if (formData.changeType === 'percent') {
+        if (formData.change_type === 'percent') {
             const multiplier = formData.direction === 'increase'
-                ? (100 + formData.changeValue) / 100
-                : (100 - formData.changeValue) / 100;
+                ? (100 + formData.change_value) / 100
+                : (100 - formData.change_value) / 100;
             newPrice = basePrice * multiplier;
         } else {
             newPrice = formData.direction === 'increase'
-                ? basePrice + formData.changeValue
-                : basePrice - formData.changeValue;
+                ? basePrice + formData.change_value
+                : basePrice - formData.change_value;
         }
 
         return {
@@ -110,13 +117,13 @@ export default function PriceBulkEditModal({
             case 'all':
                 return 'всех товаров';
             case 'brand':
-                const brand = brands.find(b => b.id === formData.scopeId);
+                const brand = brands.find(b => b.id === formData.scope_id);
                 return brand ? `товаров бренда "${brand.name}"` : 'товаров выбранного бренда';
             case 'category':
-                const category = categories.find(c => c.id === formData.scopeId);
+                const category = categories.find(c => c.id === formData.scope_id);
                 return category ? `товаров категории "${category.name}"` : 'товаров выбранной категории';
             case 'catalog':
-                const catalog = catalogs.find(c => c.id === formData.scopeId);
+                const catalog = catalogs.find(c => c.id === formData.scope_id);
                 return catalog ? `товаров каталога "${catalog.name}"` : 'товаров выбранного каталога';
             default:
                 return 'товаров';
@@ -127,16 +134,16 @@ export default function PriceBulkEditModal({
         setFormData(prev => ({
             ...prev,
             scope: value as PriceScope,
-            scopeId: undefined
+            scope_id: undefined
         }));
     };
 
     const handlePriceTypeChange = (value: string) => {
-        setFormData(prev => ({ ...prev, priceType: value as PriceType }));
+        setFormData(prev => ({ ...prev, price_type: value as PriceType }));
     };
 
     const handleChangeTypeChange = (value: string) => {
-        setFormData(prev => ({ ...prev, changeType: value as ChangeType }));
+        setFormData(prev => ({ ...prev, change_type: value as ChangeType }));
     };
 
     const handleDirectionChange = (value: string) => {
@@ -193,10 +200,10 @@ export default function PriceBulkEditModal({
                                         {formData.scope === 'catalog' && 'Выберите каталог'}
                                     </label>
                                     <select
-                                        value={formData.scopeId || ''}
+                                        value={formData.scope_id || ''}
                                         onChange={(e) => setFormData(prev => ({
                                             ...prev,
-                                            scopeId: e.target.value ? Number(e.target.value) : undefined
+                                            scope_id: e.target.value ? Number(e.target.value) : undefined
                                         }))}
                                         className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                     >
@@ -224,8 +231,8 @@ export default function PriceBulkEditModal({
                                 <input
                                     type="checkbox"
                                     id="onlyActive"
-                                    checked={formData.onlyActive}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, onlyActive: e.target.checked }))}
+                                    checked={formData.only_active}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, only_active: e.target.checked }))}
                                     className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                                 />
                                 <label htmlFor="onlyActive" className="ml-2 text-sm text-gray-700">
@@ -237,8 +244,8 @@ export default function PriceBulkEditModal({
                                 <input
                                     type="checkbox"
                                     id="onlyInStock"
-                                    checked={formData.onlyInStock}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, onlyInStock: e.target.checked }))}
+                                    checked={formData.only_in_stock}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, only_in_stock: e.target.checked }))}
                                     className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                                 />
                                 <label htmlFor="onlyInStock" className="ml-2 text-sm text-gray-700">
@@ -257,11 +264,11 @@ export default function PriceBulkEditModal({
                                     <input
                                         type="number"
                                         placeholder="Цена от"
-                                        value={formData.priceRange?.from || ''}
+                                        value={formData.price_range?.from || ''}
                                         onChange={(e) => setFormData(prev => ({
                                             ...prev,
-                                            priceRange: {
-                                                ...prev.priceRange,
+                                            price_range: {
+                                                ...prev.price_range,
                                                 from: e.target.value ? Number(e.target.value) : undefined
                                             }
                                         }))}
@@ -272,11 +279,11 @@ export default function PriceBulkEditModal({
                                     <input
                                         type="number"
                                         placeholder="Цена до"
-                                        value={formData.priceRange?.to || ''}
+                                        value={formData.price_range?.to || ''}
                                         onChange={(e) => setFormData(prev => ({
                                             ...prev,
-                                            priceRange: {
-                                                ...prev.priceRange,
+                                            price_range: {
+                                                ...prev.price_range,
                                                 to: e.target.value ? Number(e.target.value) : undefined
                                             }
                                         }))}
@@ -297,13 +304,13 @@ export default function PriceBulkEditModal({
                                     Какие цены изменять
                                 </label>
                                 <select
-                                    value={formData.priceType}
+                                    value={formData.price_type}
                                     onChange={(e) => handlePriceTypeChange(e.target.value)}
                                     className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                 >
                                     <option value="main">Только основную цену</option>
-                                    <option value="sale">Только цену со скидкой</option>
-                                    <option value="both">Обе цены</option>
+                                    <option value="discount">Только цену со скидкой</option>
+                                    <option value="both">Обе цены пропорционально</option>
                                 </select>
                             </div>
 
@@ -312,7 +319,7 @@ export default function PriceBulkEditModal({
                                     Тип изменения
                                 </label>
                                 <select
-                                    value={formData.changeType}
+                                    value={formData.change_type}
                                     onChange={(e) => handleChangeTypeChange(e.target.value)}
                                     className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                 >
@@ -338,19 +345,30 @@ export default function PriceBulkEditModal({
 
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">
-                                {formData.changeType === 'percent' ? 'Процент изменения' : 'Сумма изменения (₽)'}
+                                {formData.change_type === 'percent' ? 'Процент изменения' : 'Сумма изменения (₽)'}
                             </label>
                             <div className="relative">
                                 <input
                                     type="number"
-                                    value={formData.changeValue}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, changeValue: Number(e.target.value) }))}
+                                    value={formData.change_value || ''}
+                                    onChange={(e) => {
+                                        const value = e.target.value;
+                                        // Удаляем ведущие нули и конвертируем в число
+                                        const numValue = value === '' ? 0 : parseFloat(value) || 0;
+                                        setFormData(prev => ({ ...prev, change_value: numValue }));
+                                    }}
+                                    onBlur={(e) => {
+                                        // При потере фокуса убираем ведущие нули окончательно
+                                        const value = parseFloat(e.target.value) || 0;
+                                        setFormData(prev => ({ ...prev, change_value: value }));
+                                    }}
                                     min="0"
-                                    step={formData.changeType === 'percent' ? '0.1' : '1'}
+                                    step={formData.change_type === 'percent' ? '0.1' : '1'}
+                                    placeholder="0"
                                     className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 pr-12"
                                 />
                                 <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500">
-                                    {formData.changeType === 'percent' ? (
+                                    {formData.change_type === 'percent' ? (
                                         <Percent className="h-5 w-5" />
                                     ) : (
                                         <span className="text-sm">₽</span>
@@ -377,7 +395,7 @@ export default function PriceBulkEditModal({
                             <p>
                                 <span className="font-medium">Изменение:</span>{' '}
                                 {formData.direction === 'increase' ? 'Увеличить' : 'Уменьшить'} на{' '}
-                                {formData.changeValue}{formData.changeType === 'percent' ? '%' : '₽'}
+                                {formData.change_value}{formData.change_type === 'percent' ? '%' : '₽'}
                             </p>
                             <p>
                                 <span className="font-medium">Пример:</span>{' '}
@@ -441,7 +459,7 @@ export default function PriceBulkEditModal({
                         </button>
                         <button
                             onClick={handleSubmit}
-                            disabled={loading || formData.changeValue <= 0}
+                            disabled={loading || formData.change_value <= 0}
                             className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center gap-2"
                         >
                             {loading && <RefreshCw className="h-4 w-4 animate-spin" />}

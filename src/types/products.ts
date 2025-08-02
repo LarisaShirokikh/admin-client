@@ -207,23 +207,20 @@ export interface BatchUpdateResponse {
 // ========== ИНТЕРФЕЙСЫ ДЛЯ МАССОВОГО ИЗМЕНЕНИЯ ЦЕН ==========
 
 export type PriceScope = 'all' | 'brand' | 'category' | 'catalog';
-export type PriceType = 'both' | 'main' | 'sale';
+export type PriceType = 'both' | 'main' | 'discount';
 export type ChangeType = 'percent' | 'fixed';
 export type Direction = 'increase' | 'decrease';
 
 export interface PriceUpdateData {
-    scope: PriceScope;
-    scopeId?: number;
-    priceType: PriceType;
-    changeType: ChangeType;
-    changeValue: number;
-    direction: Direction;
-    onlyActive?: boolean;
-    onlyInStock?: boolean;
-    priceRange?: {
-        from?: number;
-        to?: number;
-    };
+    scope: string;
+    scope_id?: number;
+    price_type: string;
+    change_type: string;
+    change_value: number;
+    direction: string;
+    only_active?: boolean;
+    only_in_stock?: boolean;
+    price_range?: { [key: string]: number | undefined };
 }
 
 export interface BulkPriceUpdateResponse {
@@ -235,14 +232,11 @@ export interface BulkPriceUpdateResponse {
 }
 
 export interface ProductCountRequest {
-    scope: PriceScope;
+    scope: string;
     scope_id?: number;
     only_active?: boolean;
     only_in_stock?: boolean;
-    price_range?: {
-        from?: number;
-        to?: number;
-    };
+    price_range?: { [key: string]: number | undefined };
 }
 
 export interface PriceBulkEditModalProps {
