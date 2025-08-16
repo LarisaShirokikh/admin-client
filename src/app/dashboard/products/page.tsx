@@ -426,7 +426,7 @@ export default function ProductsPage() {
             return selectedProductsData[0].categories?.map(cat => cat.id) || [];
         }
 
-        // Если несколько продуктов, находим пересечение категорий
+
         const firstProductCategories = selectedProductsData[0].categories?.map(cat => cat.id) || [];
 
         return firstProductCategories.filter(categoryId =>
@@ -436,10 +436,10 @@ export default function ProductsPage() {
         );
     }, [selectedProducts, products]);
 
-    // Функция для принудительного обновления
+
     const forceRefresh = useCallback(() => {
-        // Триггерим перезагрузку через изменение ключевого состояния
-        setSearch(prev => prev === '' ? ' ' : ''); // Переключаем между пустой строкой и пробелом
+
+        setSearch(prev => prev === '' ? ' ' : '');
         setCurrentPage(1);
     }, []);
 
@@ -449,7 +449,7 @@ export default function ProductsPage() {
         debouncedSearch(value);
     }, [debouncedSearch]);
 
-    // Функция для очистки поиска
+
     const clearSearch = useCallback(() => {
         setSearchInput('');
         setSearch('');

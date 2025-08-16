@@ -31,7 +31,7 @@ export default function ProductEditModal({
         category_ids: product.categories?.map((cat: { id: number }) => cat.id) || [] as number[]
     });
 
-    // Типизированное состояние для работы с изображениями
+
     const [images, setImages] = useState<ImageUploadData[]>([]);
     const [imagesLoading, setImagesLoading] = useState(true);
     const [imagesError, setImagesError] = useState<string | null>(null);
@@ -41,20 +41,17 @@ export default function ProductEditModal({
     const [imageUploading, setImageUploading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // Загружаем изображения при монтировании компонента
+
     useEffect(() => {
         const loadImages = async () => {
             setImagesLoading(true);
             setImagesError(null);
 
             try {
-                console.log('Загружаем изображения для продукта:', product.id);
 
                 let imagesToSet: ImageUploadData[] = [];
 
-                // Сначала пробуем использовать изображения из объекта продукта
                 if (product.images && product.images.length > 0) {
-                    console.log('Используем изображения из объекта продукта');
                     imagesToSet = product.images.map((img: ProductImage) => ({
                         id: img.id,
                         url: img.url,
@@ -63,10 +60,7 @@ export default function ProductEditModal({
                         alt_text: img.alt_text
                     }));
                 } else if (product.id) {
-                    // Если изображений нет в объекте продукта, загружаем их отдельно
-                    console.log('Загружаем изображения через API');
                     const productImages = await productsApi.getProductImages(product.id);
-                    console.log('Загруженные изображения:', productImages);
 
                     imagesToSet = productImages.map((img: ProductImage) => ({
                         id: img.id,
@@ -77,7 +71,6 @@ export default function ProductEditModal({
                     }));
                 }
 
-                console.log('Финальный список изображений:', imagesToSet);
                 setImages(imagesToSet);
                 setImagesError(null);
             } catch (error) {
@@ -100,11 +93,9 @@ export default function ProductEditModal({
         }));
     };
 
-    // Функции для работы с изображениями
     const handleAddImageByUrl = async () => {
         if (!imageUrl.trim()) return;
 
-        // Проверяем валидность URL
         try {
             const isValid = await productsApi.validateImageUrl(imageUrl.trim());
             if (!isValid) {
@@ -117,7 +108,7 @@ export default function ProductEditModal({
 
         const newImage: ImageUploadData = {
             url: imageUrl.trim(),
-            is_main: images.filter(img => !img.toDelete).length === 0, // Первое изображение становится главным
+            is_main: images.filter(img => !img.toDelete).length === 0,
             isNew: true
         };
 
@@ -138,25 +129,22 @@ export default function ProductEditModal({
             for (let i = 0; i < files.length; i++) {
                 const file = files[i];
 
-                // Проверяем тип файла
                 if (!file.type.startsWith('image/')) {
                     console.warn(`Файл ${file.name} не является изображением`);
                     continue;
                 }
 
-                // Проверяем размер файла (например, максимум 10MB)
-                const maxSize = 10 * 1024 * 1024; // 10MB
+                const maxSize = 10 * 1024 * 1024;
                 if (file.size > maxSize) {
                     console.warn(`Файл ${file.name} слишком большой (${(file.size / (1024 * 1024)).toFixed(2)}MB)`);
                     continue;
                 }
 
-                // Создаем URL для предпросмотра
                 const previewUrl = URL.createObjectURL(file);
 
                 const newImage: ImageUploadData = {
                     url: previewUrl,
-                    is_main: activeImagesCount === 0 && i === 0, // Первое изображение становится главным
+                    is_main: activeImagesCount === 0 && i === 0,
                     file: file,
                     isNew: true
                 };
@@ -172,7 +160,6 @@ export default function ProductEditModal({
             alert('Произошла ошибка при обработке файлов');
         } finally {
             setImageUploading(false);
-            // Очищаем input
             if (fileInputRef.current) {
                 fileInputRef.current.value = '';
             }
@@ -180,27 +167,24 @@ export default function ProductEditModal({
     };
 
     const handleDeleteImage = (index: number) => {
+        console.log('Удаляем изображение с индексом:', index);
         setImages(prev => {
             const newImages = [...prev];
             const imageToDelete = newImages[index];
 
-            // Если это существующее изображение, помечаем на удаление
             if (imageToDelete.id && !imageToDelete.isNew) {
                 newImages[index] = { ...imageToDelete, toDelete: true };
             } else {
-                // Если это новое изображение, просто удаляем из массива
-                // Освобождаем URL если это был объект URL
                 if (imageToDelete.file && imageToDelete.url.startsWith('blob:')) {
                     URL.revokeObjectURL(imageToDelete.url);
                 }
                 newImages.splice(index, 1);
+            }
 
-                // Если удаляем главное изображение, назначаем главным первое оставшееся
-                if (imageToDelete.is_main && newImages.length > 0) {
-                    const firstActiveImage = newImages.find((img: ImageUploadData) => !img.toDelete);
-                    if (firstActiveImage) {
-                        firstActiveImage.is_main = true;
-                    }
+            if (imageToDelete.is_main) {
+                const firstActiveImage = newImages.find(img => !img.toDelete);
+                if (firstActiveImage) {
+                    firstActiveImage.is_main = true;
                 }
             }
 
@@ -208,8 +192,10 @@ export default function ProductEditModal({
         });
     };
 
+
     const handleSetMainImage = (index: number) => {
-        setImages(prev => prev.map((img: ImageUploadData, i: number) => ({
+        console.log('Устанавливаем главным изображение с индексом:', index);
+        setImages(prev => prev.map((img, i) => ({
             ...img,
             is_main: i === index && !img.toDelete
         })));
@@ -272,8 +258,6 @@ export default function ProductEditModal({
         }
 
         const updateData: ProductUpdate = {};
-
-        // Проверяем изменения основных полей
         if (formData.name !== product.name) {
             updateData.name = formData.name;
         }
@@ -302,7 +286,6 @@ export default function ProductEditModal({
             updateData.in_stock = formData.in_stock;
         }
 
-        // Проверяем изменения категорий
         const currentCategoryIds = product.categories?.map((cat: { id: number }) => cat.id) || [];
         const newCategoryIds = formData.category_ids.sort();
         const currentCategoryIdsSorted = currentCategoryIds.sort();
@@ -311,21 +294,17 @@ export default function ProductEditModal({
             updateData.category_ids = formData.category_ids;
         }
 
-        // Подготавливаем данные изображений
         const imageUpdates = prepareImageUpdates();
 
-        // Добавляем данные изображений если есть изменения
         if (imageUpdates.new_images!.length > 0 ||
             imageUpdates.delete_image_ids!.length > 0 ||
             imageUpdates.main_image_id !== null) {
             updateData.images = imageUpdates;
         }
 
-        console.log('Отправляем данные для обновления:', updateData);
         onSave(updateData);
     };
 
-    // Функция для повторной загрузки изображений
     const handleReloadImages = async () => {
         if (!product.id) return;
 
@@ -527,14 +506,13 @@ export default function ProductEditModal({
                                                             {/* Простое изображение без сложной логики состояний */}
                                                             <img
                                                                 src={image.url}
+                                                                loading="lazy"
+                                                                decoding="async"
                                                                 className="w-full h-full object-cover"
-                                                                onLoad={() => {
-                                                                    console.log(`✅ Изображение загружено: ${image.url}`);
-                                                                }}
+                                                                onLoad={() => console.log(`Изображение загружено: ${image.url}`)}
                                                                 onError={(e) => {
-                                                                    console.error(`❌ Ошибка загрузки изображения: ${image.url}`);
                                                                     const target = e.target as HTMLImageElement;
-                                                                    target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii4+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxMiIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkVycm9yPC90ZXh0Pjwvc3ZnPg==';
+                                                                    target.src = 'data:image/svg+xml;base64,...'; // как у тебя
                                                                 }}
                                                             />
 
@@ -548,31 +526,27 @@ export default function ProductEditModal({
                                                                 🔗
                                                             </button>
 
-                                                            {/* Оверлей с действиями - показываем всегда при наведении */}
+                                                            {/* Оверлей с действиями */}
                                                             {!image.toDelete && (
-                                                                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all duration-200 flex items-center justify-center">
-                                                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-1">
+                                                                <div
+                                                                    className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-200 flex items-center justify-center pointer-events-none"
+                                                                >
+                                                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-1 pointer-events-auto">
                                                                         {/* Предпросмотр */}
                                                                         <button
                                                                             type="button"
-                                                                            onClick={() => {
-                                                                                console.log(`🔍 Открываем предпросмотр: ${image.url}`);
-                                                                                setShowImagePreview(image.url);
-                                                                            }}
+                                                                            onClick={() => setShowImagePreview(image.url)}
                                                                             className="p-1 bg-white text-gray-700 rounded hover:bg-gray-100"
                                                                             title="Предпросмотр"
                                                                         >
                                                                             <Eye className="h-3 w-3" />
                                                                         </button>
 
-                                                                        {/* Установить главным */}
+                                                                        {/* Сделать главным */}
                                                                         <button
                                                                             type="button"
                                                                             onClick={() => handleSetMainImage(index)}
-                                                                            className={`p-1 rounded ${image.is_main
-                                                                                ? 'bg-yellow-400 text-white'
-                                                                                : 'bg-white text-gray-700 hover:bg-gray-100'
-                                                                                }`}
+                                                                            className={`p-1 rounded ${image.is_main ? 'bg-yellow-400 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'}`}
                                                                             title={image.is_main ? 'Главное изображение' : 'Сделать главным'}
                                                                         >
                                                                             {image.is_main ? <Star className="h-3 w-3" /> : <StarOff className="h-3 w-3" />}
@@ -619,7 +593,7 @@ export default function ProductEditModal({
                                                         </div>
                                                     </div>
                                                 )
-                                            })})
+                                            })}
                                         </div>
                                     </div>
                                 )}

@@ -15,7 +15,6 @@ import {
     LogOut,
     Menu,
     X,
-    User,
     Download,
     Contact
 } from 'lucide-react';
@@ -42,163 +41,110 @@ export default function DashboardLayout({
     const pathname = usePathname();
     const { user, logout, isSuperuser } = useAuth();
 
-    const handleLogout = () => {
-        logout();
-    };
-
     return (
-        <div className="h-full">
-            {/* Mobile sidebar */}
-            <div className={`relative z-50 lg:hidden ${sidebarOpen ? '' : 'hidden'}`}>
-                <div className="fixed inset-0 bg-gray-900/80" onClick={() => setSidebarOpen(false)} />
+        <div className="flex h-screen bg-gray-50">
+            {/* Mobile backdrop */}
+            {sidebarOpen && (
+                <div
+                    className="fixed inset-0 bg-gray-900 bg-opacity-50 z-40 lg:hidden"
+                    onClick={() => setSidebarOpen(false)}
+                />
+            )}
 
-                <div className="fixed inset-0 flex">
-                    <div className="relative mr-16 flex w-full max-w-xs flex-1">
-                        <div className="absolute left-full top-0 flex w-16 justify-center pt-5">
-                            <button type="button" className="-m-2.5 p-2.5" onClick={() => setSidebarOpen(false)}>
-                                <X className="h-6 w-6 text-white" />
-                            </button>
-                        </div>
+            {/* Sidebar */}
+            <div className={`fixed inset-y-0 left-0 z-50 w-56 bg-white border-r border-gray-200 transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+                }`}>
 
-                        <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-white px-6 pb-2">
-                            <div className="flex h-16 shrink-0 items-center">
-                                <h1 className="text-xl font-bold text-gray-900">Doors Admin</h1>
-                            </div>
-                            <nav className="flex flex-1 flex-col">
-                                <ul role="list" className="flex flex-1 flex-col gap-y-7">
-                                    <li>
-                                        <ul role="list" className="-mx-2 space-y-1">
-                                            {navigation.map((item) => {
-                                                const isActive = pathname === item.href;
-                                                return (
-                                                    <li key={item.name}>
-                                                        <Link
-                                                            href={item.href}
-                                                            className={`group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold ${isActive
-                                                                ? 'bg-gray-50 text-indigo-600'
-                                                                : 'text-gray-700 hover:text-indigo-600 hover:bg-gray-50'
-                                                                }`}
-                                                            onClick={() => setSidebarOpen(false)}
-                                                        >
-                                                            <item.icon className="h-6 w-6 shrink-0" />
-                                                            {item.name}
-                                                        </Link>
-                                                    </li>
-                                                );
-                                            })}
-                                        </ul>
-                                    </li>
-                                </ul>
-                            </nav>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Static sidebar for desktop */}
-            <div className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-72 lg:flex-col">
-                <div className="flex grow flex-col gap-y-5 overflow-y-auto border-r border-gray-200 bg-white px-6">
-                    <div className="flex h-16 shrink-0 items-center">
-                        <h1 className="text-xl font-bold text-gray-900">Doors Admin</h1>
-                    </div>
-                    <nav className="flex flex-1 flex-col">
-                        <ul role="list" className="flex flex-1 flex-col gap-y-7">
-                            <li>
-                                <ul role="list" className="-mx-2 space-y-1">
-                                    {navigation.map((item) => {
-                                        const isActive = pathname === item.href;
-                                        return (
-                                            <li key={item.name}>
-                                                <Link
-                                                    href={item.href}
-                                                    className={`group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold ${isActive
-                                                        ? 'bg-gray-50 text-indigo-600'
-                                                        : 'text-gray-700 hover:text-indigo-600 hover:bg-gray-50'
-                                                        }`}
-                                                >
-                                                    <item.icon className="h-6 w-6 shrink-0" />
-                                                    {item.name}
-                                                </Link>
-                                            </li>
-                                        );
-                                    })}
-                                </ul>
-                            </li>
-
-                            {/* User info and logout */}
-                            <li className="-mx-6 mt-auto">
-                                <div className="flex items-center gap-x-4 px-6 py-3 text-sm font-semibold leading-6 text-gray-900 border-t border-gray-200">
-                                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100">
-                                        <User className="h-4 w-4" />
-                                    </div>
-                                    <div className="flex-1">
-                                        <div className="text-sm font-medium">{user?.username}</div>
-                                        <div className="text-xs text-gray-500">
-                                            {isSuperuser ? 'Суперадмин' : 'Администратор'}
-                                        </div>
-                                    </div>
-                                    <button
-                                        onClick={handleLogout}
-                                        className="text-gray-400 hover:text-red-600 transition-colors"
-                                        title="Выйти"
-                                    >
-                                        <LogOut className="h-5 w-5" />
-                                    </button>
-                                </div>
-                            </li>
-                        </ul>
-                    </nav>
-                </div>
-            </div>
-
-            {/* Main content */}
-            <div className="lg:pl-72">
-                {/* Top bar for mobile */}
-                <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 bg-white px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
+                {/* Header */}
+                <div className="flex items-center justify-between h-14 px-4 border-b border-gray-200 bg-white">
+                    <span className="text-lg font-semibold text-gray-900">Doors Admin</span>
                     <button
-                        type="button"
-                        className="-m-2.5 p-2.5 text-gray-700 lg:hidden"
-                        onClick={() => setSidebarOpen(true)}
+                        className="lg:hidden p-1 rounded-md hover:bg-gray-100"
+                        onClick={() => setSidebarOpen(false)}
                     >
-                        <Menu className="h-6 w-6" />
+                        <X className="w-5 h-5 text-gray-500" />
                     </button>
+                </div>
 
-                    {/* Separator */}
-                    <div className="h-6 w-px bg-gray-200 lg:hidden" />
-
-                    <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
-                        <div className="flex items-center gap-x-4 lg:gap-x-6">
-                            <div className="hidden lg:block lg:h-6 lg:w-px lg:bg-gray-200" />
-
-                            {/* Current page indicator */}
-                            <div className="flex items-center text-sm text-gray-500">
-                                {navigation.find(item => item.href === pathname)?.name || 'Страница'}
-                            </div>
-                        </div>
-
-                        <div className="flex items-center gap-x-4 lg:gap-x-6 ml-auto">
-                            <div className="hidden sm:flex sm:items-center sm:gap-x-2">
-                                <div className="text-sm font-medium text-gray-900">{user?.username}</div>
-                                <div className="text-xs text-gray-500">
-                                    {isSuperuser ? 'Суперадмин' : 'Администратор'}
-                                </div>
-                            </div>
-
-                            <button
-                                onClick={handleLogout}
-                                className="flex items-center gap-x-2 text-sm text-gray-700 hover:text-red-600 transition-colors lg:hidden"
+                {/* Navigation */}
+                <nav className="flex-1 px-3 py-4 space-y-1">
+                    {navigation.map((item) => {
+                        const isActive = pathname === item.href;
+                        return (
+                            <Link
+                                key={item.name}
+                                href={item.href}
+                                className={`flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-150 ${isActive
+                                    ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-500'
+                                    : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                                    }`}
+                                onClick={() => setSidebarOpen(false)}
                             >
-                                <LogOut className="h-4 w-4" />
-                                <span className="hidden sm:block">Выйти</span>
-                            </button>
+                                <item.icon className={`w-5 h-5 mr-3 ${isActive ? 'text-blue-500' : 'text-gray-400'
+                                    }`} />
+                                {item.name}
+                            </Link>
+                        );
+                    })}
+                </nav>
+
+                {/* User section */}
+                <div className="border-t border-gray-200 p-4">
+                    <div className="flex items-center">
+                        <div className="flex-shrink-0">
+                            <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
+                                <span className="text-sm font-medium text-gray-600">
+                                    {user?.username?.charAt(0).toUpperCase()}
+                                </span>
+                            </div>
                         </div>
+                        <div className="ml-3 flex-1">
+                            <p className="text-sm font-medium text-gray-900">{user?.username}</p>
+                            <p className="text-xs text-gray-500">
+                                {isSuperuser ? 'Суперадминистратор' : 'Администратор'}
+                            </p>
+                        </div>
+                        <button
+                            onClick={logout}
+                            className="p-1 rounded-md hover:bg-gray-100 text-gray-400 hover:text-red-500 transition-colors"
+                            title="Выйти"
+                        >
+                            <LogOut className="w-4 h-4" />
+                        </button>
                     </div>
                 </div>
+            </div>
+
+            {/* Main content area */}
+            <div className="flex-1 flex flex-col min-w-0">
+                {/* Mobile header */}
+                <header className="lg:hidden bg-white border-b border-gray-200 px-4 h-14 flex items-center">
+                    <button
+                        onClick={() => setSidebarOpen(true)}
+                        className="p-1 rounded-md hover:bg-gray-100"
+                    >
+                        <Menu className="w-6 h-6 text-gray-600" />
+                    </button>
+                    <div className="ml-4 flex-1">
+                        <h1 className="text-lg font-semibold text-gray-900">
+                            {navigation.find(item => item.href === pathname)?.name || 'Страница'}
+                        </h1>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                        <span className="text-sm text-gray-700">{user?.username}</span>
+                        <button
+                            onClick={logout}
+                            className="p-1 rounded-md hover:bg-gray-100 text-gray-400 hover:text-red-500"
+                        >
+                            <LogOut className="w-4 h-4" />
+                        </button>
+                    </div>
+                </header>
 
                 {/* Page content */}
-                <main className="py-6">
+                <main className="flex-1 overflow-auto">
                     <ToastProvider>
-                        <div className="px-4 sm:px-6 lg:px-8">
+                        <div className="p-6">
                             {children}
                         </div>
                     </ToastProvider>
