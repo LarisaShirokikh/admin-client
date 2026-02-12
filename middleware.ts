@@ -5,9 +5,11 @@ export function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl;
     const accessToken = request.cookies.get('access_token')?.value;
 
+    const normalizedPath = pathname.replace(/\/$/, '') || '/';
+
     const publicPaths = ['/login'];
 
-    if (publicPaths.includes(pathname)) {
+    if (publicPaths.includes(normalizedPath)) {
         if (accessToken) {
             const url = request.nextUrl.clone();
             url.pathname = '/dashboard';
@@ -16,7 +18,7 @@ export function middleware(request: NextRequest) {
         return NextResponse.next();
     }
 
-    if (pathname === '/') {
+    if (normalizedPath === '/') {
         const url = request.nextUrl.clone();
         url.pathname = accessToken ? '/dashboard' : '/login';
         return NextResponse.redirect(url);
