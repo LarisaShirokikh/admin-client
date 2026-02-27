@@ -22,7 +22,7 @@ export const videoApi = {
             formData.append('is_featured', data.is_featured.toString());
         }
 
-        const response = await apiClient.client.post('/api/v1/video/upload/', formData, {
+        const response = await apiClient.client.post('/api/v1/videomgmt/upload/', formData, {
             headers: {
                 'Content-Type': 'multipart/form-data',
             },
@@ -45,19 +45,19 @@ export const videoApi = {
         is_featured?: boolean;
         product_id?: number;
     }): Promise<VideoResponse[]> {
-        const response = await apiClient.client.get('/api/v1/video/', { params });
+        const response = await apiClient.client.get('/api/v1/videomgmt/', { params });
         return response.data;
     },
 
     // Получить видео по ID
     async getVideo(videoId: number): Promise<VideoResponse> {
-        const response = await apiClient.client.get(`/api/v1/video/${videoId}`);
+        const response = await apiClient.client.get(`/api/v1/videomgmt/${videoId}`);
         return response.data;
     },
 
     // Получить избранные видео
     async getFeaturedVideos(limit = 10): Promise<VideoResponse[]> {
-        const response = await apiClient.client.get('/api/v1/video/featured/', {
+        const response = await apiClient.client.get('/api/v1/videomgmt/featured', {
             params: { limit }
         });
         return response.data;
@@ -65,7 +65,7 @@ export const videoApi = {
 
     // Поиск видео
     async searchVideos(query: string): Promise<VideoResponse[]> {
-        const response = await apiClient.client.get('/api/v1/video/search/', {
+        const response = await apiClient.client.get('/api/v1/videomgmt/search/', {
             params: { q: query }
         });
         return response.data;
@@ -73,31 +73,31 @@ export const videoApi = {
 
     // Обновить видео
     async updateVideo(videoId: number, data: VideoUpdateData): Promise<VideoResponse> {
-        const response = await apiClient.client.put(`/api/v1/video/${videoId}`, data);
+        const response = await apiClient.client.put(`/api/v1/videomgmt/${videoId}`, data);
         return response.data;
     },
 
     // Удалить видео (только суперадмин)
     async deleteVideo(videoId: number): Promise<{ message: string }> {
-        const response = await apiClient.client.delete(`/api/v1/video/${videoId}`);
+        const response = await apiClient.client.delete(`/api/v1/videomgmt/${videoId}`);
         return response.data;
     },
 
     // Переключить статус активности
     async toggleVideoStatus(videoId: number): Promise<VideoResponse> {
-        const response = await apiClient.client.post(`/api/v1/video/${videoId}/toggle-status`);
+        const response = await apiClient.client.post(`/api/v1/videomgmt/${videoId}/toggle-status`);
         return response.data;
     },
 
     // Переключить статус избранного
     async toggleFeaturedStatus(videoId: number): Promise<VideoResponse> {
-        const response = await apiClient.client.post(`/api/v1/video/${videoId}/toggle-featured`);
+        const response = await apiClient.client.post(`/api/v1/videomgmt/${videoId}/toggle-featured`);
         return response.data;
     },
 
     // Автопривязка к продукту
     async autoLinkProduct(videoId: number): Promise<VideoResponse> {
-        const response = await apiClient.client.post(`/api/v1/video/${videoId}/auto-link-product`);
+        const response = await apiClient.client.post(`/api/v1/videomgmt/${videoId}/auto-link-product`);
         return response.data;
     },
 
@@ -107,19 +107,19 @@ export const videoApi = {
         video_title: string;
         suggestions: ProductSuggestion[];
     }> {
-        const response = await apiClient.client.get(`/api/v1/video/${videoId}/suggest-products`);
+        const response = await apiClient.client.get(`/api/v1/videomgmt/${videoId}/suggest-products`);
         return response.data;
     },
 
     // Статистика видео
     async getVideoStats(): Promise<VideoStats> {
-        const response = await apiClient.client.get('/api/v1/video/stats/summary');
+        const response = await apiClient.client.get('/api/v1/videomgmt/stats/summary');
         return response.data;
     },
 
     // Проверка системы
     async getSystemCheck(): Promise<SystemCheck> {
-        const response = await apiClient.client.get('/api/v1/video/system-check');
+        const response = await apiClient.client.get('/api/v1/videomgmt/system-check');
         return response.data;
     }
 };

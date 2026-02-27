@@ -27,19 +27,19 @@ export const settingsApi = {
 
     // Получить профиль текущего пользователя
     async getProfile(): Promise<UserProfile> {
-        const response = await apiClient.client.get('/api/v1/settings/profile');
+        const response = await apiClient.client.get('/api/v1/settingsmgmt/profile');
         return response.data;
     },
 
     // Обновить профиль пользователя
     async updateProfile(data: UserProfileUpdate): Promise<UserProfile> {
-        const response = await apiClient.client.patch('/api/v1/settings/profile', data);
+        const response = await apiClient.client.patch('/api/v1/settingsmgmt/profile', data);
         return response.data;
     },
 
     // Сменить пароль
     async changePassword(data: PasswordChangeRequest): Promise<{ message: string }> {
-        const response = await apiClient.client.post('/api/v1/settings/change-password', data);
+        const response = await apiClient.client.post('/api/v1/settingsmgmt/change-password', data);
         return response.data;
     },
 
@@ -48,7 +48,7 @@ export const settingsApi = {
         const formData = new FormData();
         formData.append('avatar', file);
 
-        const response = await apiClient.client.post('/api/v1/settings/upload-avatar', formData, {
+        const response = await apiClient.client.post('/api/v1/settingsmgmt/upload-avatar', formData, {
             headers: {
                 'Content-Type': 'multipart/form-data',
             },
@@ -58,7 +58,7 @@ export const settingsApi = {
 
     // Удалить аватар
     async deleteAvatar(): Promise<UserProfile> {
-        const response = await apiClient.client.delete('/api/v1/settings/avatar');
+        const response = await apiClient.client.delete('/api/v1/settingsmgmt/avatar');
         return response.data;
     },
 
@@ -66,19 +66,19 @@ export const settingsApi = {
 
     // Получить системные настройки
     async getSystemSettings(): Promise<SystemSettings> {
-        const response = await apiClient.client.get('/api/v1/settings/system');
+        const response = await apiClient.client.get('/api/v1/settingsmgmt/system');
         return response.data;
     },
 
     // Обновить системные настройки
     async updateSystemSettings(data: Partial<SystemSettings>): Promise<SystemSettings> {
-        const response = await apiClient.client.patch('/api/v1/settings/system', data);
+        const response = await apiClient.client.patch('/api/v1/settingsmgmt/system', data);
         return response.data;
     },
 
     // Сбросить системные настройки к значениям по умолчанию
     async resetSystemSettings(): Promise<SystemSettings> {
-        const response = await apiClient.client.post('/api/v1/settings/system/reset');
+        const response = await apiClient.client.post('/api/v1/settingsmgmt/system/reset');
         return response.data;
     },
 
@@ -86,19 +86,19 @@ export const settingsApi = {
 
     // Получить настройки уведомлений
     async getNotificationSettings(): Promise<NotificationSettings> {
-        const response = await apiClient.client.get('/api/v1/settings/notifications');
+        const response = await apiClient.client.get('/api/v1/settingsmgmt/notifications');
         return response.data;
     },
 
     // Обновить настройки уведомлений
     async updateNotificationSettings(data: Partial<NotificationSettings>): Promise<NotificationSettings> {
-        const response = await apiClient.client.patch('/api/v1/settings/notifications', data);
+        const response = await apiClient.client.patch('/api/v1/settingsmgmt/notifications', data);
         return response.data;
     },
 
     // Отправить тестовое уведомление
     async sendTestNotification(type: 'email' | 'telegram' | 'slack'): Promise<{ message: string }> {
-        const response = await apiClient.client.post('/api/v1/settings/notifications/test', { type });
+        const response = await apiClient.client.post('/api/v1/settingsmgmt/notifications/test', { type });
         return response.data;
     },
 
@@ -106,36 +106,36 @@ export const settingsApi = {
 
     // Получить список API ключей
     async getApiKeys(): Promise<ApiKey[]> {
-        const response = await apiClient.client.get('/api/v1/settings/api-keys');
+        const response = await apiClient.client.get('/api/v1/settingsmgmt/api-keys');
         return response.data;
     },
 
     // Создать новый API ключ
     async createApiKey(data: ApiKeyCreate): Promise<ApiKey> {
-        const response = await apiClient.client.post('/api/v1/settings/api-keys', data);
+        const response = await apiClient.client.post('/api/v1/settingsmgmt/api-keys', data);
         return response.data;
     },
 
     // Обновить API ключ
     async updateApiKey(id: number, data: ApiKeyUpdate): Promise<ApiKey> {
-        const response = await apiClient.client.patch(`/api/v1/settings/api-keys/${id}`, data);
+        const response = await apiClient.client.patch(`/api/v1/settingsmgmt/api-keys/${id}`, data);
         return response.data;
     },
 
     // Удалить API ключ
     async deleteApiKey(id: number): Promise<void> {
-        await apiClient.client.delete(`/api/v1/settings/api-keys/${id}`);
+        await apiClient.client.delete(`/api/v1/settingsmgmt/api-keys/${id}`);
     },
 
     // Переключить статус API ключа
     async toggleApiKeyStatus(id: number): Promise<ApiKey> {
-        const response = await apiClient.client.post(`/api/v1/settings/api-keys/${id}/toggle`);
+        const response = await apiClient.client.post(`/api/v1/settingsmgmt/api-keys/${id}/toggle`);
         return response.data;
     },
 
     // Регенерировать API ключ
     async regenerateApiKey(id: number): Promise<ApiKey> {
-        const response = await apiClient.client.post(`/api/v1/settings/api-keys/${id}/regenerate`);
+        const response = await apiClient.client.post(`/api/v1/settingsmgmt/api-keys/${id}/regenerate`);
         return response.data;
     },
 
@@ -143,13 +143,13 @@ export const settingsApi = {
 
     // Получить системную информацию
     async getSystemInfo(): Promise<SystemInfo> {
-        const response = await apiClient.client.get('/api/v1/settings/system-info');
+        const response = await apiClient.client.get('/api/v1/settingsmgmt/system-info');
         return response.data;
     },
 
     // Обновить системную информацию (принудительное обновление кэша)
     async refreshSystemInfo(): Promise<SystemInfo> {
-        const response = await apiClient.client.post('/api/v1/settings/system-info/refresh');
+        const response = await apiClient.client.post('/api/v1/settingsmgmt/system-info/refresh');
         return response.data;
     },
 
@@ -157,19 +157,19 @@ export const settingsApi = {
 
     // Создать резервную копию
     async createBackup(): Promise<BackupResult> {
-        const response = await apiClient.client.post('/api/v1/settings/backup');
+        const response = await apiClient.client.post('/api/v1/settingsmgmt/backup');
         return response.data;
     },
 
     // Получить список резервных копий
     async getBackups(): Promise<BackupResult[]> {
-        const response = await apiClient.client.get('/api/v1/settings/backups');
+        const response = await apiClient.client.get('/api/v1/settingsmgmt/backups');
         return response.data;
     },
 
     // Скачать резервную копию
     async downloadBackup(filename: string): Promise<Blob> {
-        const response = await apiClient.client.get(`/api/v1/settings/backups/${filename}/download`, {
+        const response = await apiClient.client.get(`/api/v1/settingsmgmt/backups/${filename}/download`, {
             responseType: 'blob'
         });
         return response.data;
@@ -177,25 +177,25 @@ export const settingsApi = {
 
     // Удалить резервную копию
     async deleteBackup(filename: string): Promise<{ message: string }> {
-        const response = await apiClient.client.delete(`/api/v1/settings/backups/${filename}`);
+        const response = await apiClient.client.delete(`/api/v1/settingsmgmt/backups/${filename}`);
         return response.data;
     },
 
     // Очистить кэш
     async clearCache(): Promise<ClearCacheResult> {
-        const response = await apiClient.client.post('/api/v1/settings/clear-cache');
+        const response = await apiClient.client.post('/api/v1/settingsmgmt/clear-cache');
         return response.data;
     },
 
     // Очистить логи
     async clearLogs(): Promise<{ message: string }> {
-        const response = await apiClient.client.post('/api/v1/settings/clear-logs');
+        const response = await apiClient.client.post('/api/v1/settingsmgmt/clear-logs');
         return response.data;
     },
 
     // Переиндексация поиска
     async reindexSearch(): Promise<{ message: string }> {
-        const response = await apiClient.client.post('/api/v1/settings/reindex-search');
+        const response = await apiClient.client.post('/api/v1/settingsmgmt/reindex-search');
         return response.data;
     },
 
@@ -203,19 +203,19 @@ export const settingsApi = {
 
     // Получить настройки электронной почты
     async getEmailSettings(): Promise<EmailSettings> {
-        const response = await apiClient.client.get('/api/v1/settings/email');
+        const response = await apiClient.client.get('/api/v1/settingsmgmt/email');
         return response.data;
     },
 
     // Обновить настройки электронной почты
     async updateEmailSettings(data: Partial<EmailSettings>): Promise<EmailSettings> {
-        const response = await apiClient.client.patch('/api/v1/settings/email', data);
+        const response = await apiClient.client.patch('/api/v1/settingsmgmt/email', data);
         return response.data;
     },
 
     // Тест настроек электронной почты
     async testEmailSettings(testEmail: string): Promise<{ message: string }> {
-        const response = await apiClient.client.post('/api/v1/settings/email/test', {
+        const response = await apiClient.client.post('/api/v1/settingsmgmt/email/test', {
             test_email: testEmail
         });
         return response.data;
@@ -223,43 +223,43 @@ export const settingsApi = {
 
     // Получить настройки безопасности
     async getSecuritySettings(): Promise<SecuritySettings> {
-        const response = await apiClient.client.get('/api/v1/settings/security');
+        const response = await apiClient.client.get('/api/v1/settingsmgmt/security');
         return response.data;
     },
 
     // Обновить настройки безопасности
     async updateSecuritySettings(data: Partial<SecuritySettings>): Promise<SecuritySettings> {
-        const response = await apiClient.client.patch('/api/v1/settings/security', data);
+        const response = await apiClient.client.patch('/api/v1/settingsmgmt/security', data);
         return response.data;
     },
 
     // Получить настройки хранилища
     async getStorageSettings(): Promise<StorageSettings> {
-        const response = await apiClient.client.get('/api/v1/settings/storage');
+        const response = await apiClient.client.get('/api/v1/settingsmgmt/storage');
         return response.data;
     },
 
     // Обновить настройки хранилища
     async updateStorageSettings(data: Partial<StorageSettings>): Promise<StorageSettings> {
-        const response = await apiClient.client.patch('/api/v1/settings/storage', data);
+        const response = await apiClient.client.patch('/api/v1/settingsmgmt/storage', data);
         return response.data;
     },
 
     // Тест подключения к хранилищу
     async testStorageConnection(): Promise<{ message: string }> {
-        const response = await apiClient.client.post('/api/v1/settings/storage/test');
+        const response = await apiClient.client.post('/api/v1/settingsmgmt/storage/test');
         return response.data;
     },
 
     // Получить настройки интеграций
     async getIntegrationSettings(): Promise<IntegrationSettings> {
-        const response = await apiClient.client.get('/api/v1/settings/integrations');
+        const response = await apiClient.client.get('/api/v1/settingsmgmt/integrations');
         return response.data;
     },
 
     // Обновить настройки интеграций
     async updateIntegrationSettings(data: Partial<IntegrationSettings>): Promise<IntegrationSettings> {
-        const response = await apiClient.client.patch('/api/v1/settings/integrations', data);
+        const response = await apiClient.client.patch('/api/v1/settingsmgmt/integrations', data);
         return response.data;
     },
 
@@ -267,13 +267,13 @@ export const settingsApi = {
 
     // Получить все настройки
     async getAllSettings(): Promise<AllSettings> {
-        const response = await apiClient.client.get('/api/v1/settings/all');
+        const response = await apiClient.client.get('/api/v1/settingsmgmt/all');
         return response.data;
     },
 
     // Экспорт всех настроек
     async exportSettings(): Promise<Blob> {
-        const response = await apiClient.client.get('/api/v1/settings/export', {
+        const response = await apiClient.client.get('/api/v1/settingsmgmt/export', {
             responseType: 'blob'
         });
         return response.data;
@@ -286,7 +286,7 @@ export const settingsApi = {
         formData.append('overwrite_existing', data.overwrite_existing.toString());
         formData.append('backup_before_import', data.backup_before_import.toString());
 
-        const response = await apiClient.client.post('/api/v1/settings/import', formData, {
+        const response = await apiClient.client.post('/api/v1/settingsmgmt/import', formData, {
             headers: {
                 'Content-Type': 'multipart/form-data',
             },
@@ -315,7 +315,7 @@ export const settingsApi = {
         if (limit) params.append('limit', limit.toString());
         if (offset) params.append('offset', offset.toString());
 
-        const response = await apiClient.client.get('/api/v1/settings/logs', { params });
+        const response = await apiClient.client.get('/api/v1/settingsmgmt/logs', { params });
         return response.data;
     },
 
@@ -328,7 +328,7 @@ export const settingsApi = {
         response_time: Array<{ timestamp: string; value: number }>;
         error_rate: Array<{ timestamp: string; value: number }>;
     }> {
-        const response = await apiClient.client.get('/api/v1/settings/metrics', {
+        const response = await apiClient.client.get('/api/v1/settingsmgmt/metrics', {
             params: { period }
         });
         return response.data;
@@ -347,7 +347,7 @@ export const settingsApi = {
         uptime: string;
         version: string;
     }> {
-        const response = await apiClient.client.get('/api/v1/settings/health');
+        const response = await apiClient.client.get('/api/v1/settingsmgmt/health');
         return response.data;
     }
 };

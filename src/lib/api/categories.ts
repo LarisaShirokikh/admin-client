@@ -6,18 +6,18 @@ import { apiClient } from '../api';
 export const categoriesApi = {
     // Получить список всех категорий
     async getAll(): Promise<Category[]> {
-        const response = await apiClient.client.get('/api/v1/categories/');
+        const response = await apiClient.client.get('/api/v1/categoriesmgmt/');
         return response.data;
     },
 
     async getCategories(): Promise<Category[]> {
-        const response = await apiClient.client.get('/api/v1/categories/');
+        const response = await apiClient.client.get('/api/v1/categoriesmgmt/');
         return response.data;
     },
 
     // Получить категорию по ID
     async getById(id: number): Promise<Category> {
-        const response = await apiClient.client.get(`/api/v1/categories/${id}`);
+        const response = await apiClient.client.get(`/api/v1/categoriesmgmt/${id}`);
         return response.data;
     },
 
@@ -31,7 +31,7 @@ export const categoriesApi = {
         formData.append('is_active', String(data.is_active));
         formData.append('image', image);
 
-        const response = await apiClient.client.post('/api/v1/categories/', formData, {
+        const response = await apiClient.client.post('/api/v1/categoriesmgmt/', formData, {
             headers: { 'Content-Type': 'multipart/form-data' }
         });
         return response.data;
@@ -54,7 +54,7 @@ export const categoriesApi = {
             formData.append('image', image);
         }
 
-        const response = await apiClient.client.put(`/api/v1/categories/${id}`, formData, {
+        const response = await apiClient.client.put(`/api/v1/categoriesmgmt/${id}`, formData, {
             headers: { 'Content-Type': 'multipart/form-data' }
         });
         return response.data;
@@ -62,7 +62,7 @@ export const categoriesApi = {
 
     // Удалить категорию (только для суперадмина)
     async delete(id: number, deleteProducts = false): Promise<CategoryDeleteResponse> {
-        const response = await apiClient.client.delete(`/api/v1/categories/${id}`, {
+        const response = await apiClient.client.delete(`/api/v1/categoriesmgmt/${id}`, {
             params: { delete_products: deleteProducts }
         });
         return response.data;
@@ -70,7 +70,7 @@ export const categoriesApi = {
 
     // Переключить статус активности категории
     async toggleStatus(id: number): Promise<CategoryStatusToggleResponse> {
-        const response = await apiClient.client.post(`/api/v1/categories/${id}/toggle-status`);
+        const response = await apiClient.client.post(`/api/v1/categoriesmgmt/${id}/toggle-status`);
         return response.data;
     },
 
@@ -86,7 +86,7 @@ export const categoriesApi = {
             is_active: boolean;
         }>; // Временный тип для продуктов
     }> {
-        const response = await apiClient.client.get(`/api/v1/categories/${id}/products`);
+        const response = await apiClient.client.get(`/api/v1/categoriesmgmt/${id}/products`);
         return response.data;
     },
 
@@ -103,13 +103,13 @@ export const categoriesApi = {
         requested_by: string;
         user_role: string;
     }> {
-        const response = await apiClient.client.get('/api/v1/categories/stats/summary');
+        const response = await apiClient.client.get('/api/v1/categoriesmgmt/stats/summary');
         return response.data;
     },
 
     // Поиск категорий
     async search(query: string): Promise<Category[]> {
-        const response = await apiClient.client.get('/api/v1/categories/search', {
+        const response = await apiClient.client.get('/api/v1/categoriesmgmt/search', {
             params: { q: query }
         });
         return response.data;
@@ -117,7 +117,7 @@ export const categoriesApi = {
 
     // Получить количество категорий
     async getCount(params?: { is_active?: boolean }): Promise<{ count: number }> {
-        const response = await apiClient.client.get('/api/v1/categories/count', { params });
+        const response = await apiClient.client.get('/api/v1/categoriesmgmt/count', { params });
         return response.data;
     },
 

@@ -20,10 +20,10 @@ export interface CancelTasksResponse {
 
 // Scraper types mapping
 export const SCRAPER_ENDPOINTS = {
-    labirint: '/api/v1/scraper/scrape-labirint',
-    bunker: '/api/v1/scraper/scrape-bunker',
-    intecron: '/api/v1/scraper/scrape-intecron',
-    'as-doors': '/api/v1/scraper/scrape-as-doors'
+    labirint: '/api/v1/scrapermgmt/scrape-labirint',
+    bunker: '/api/v1/scrapermgmt/scrape-bunker',
+    intecron: '/api/v1/scrapermgmt/scrape-intecron',
+    'as-doors': '/api/v1/scrapermgmt/scrape-as-doors'
 } as const;
 
 export type ScraperType = keyof typeof SCRAPER_ENDPOINTS;
@@ -77,19 +77,19 @@ export const scraperApi = {
 
     // Получить статус задачи
     async getScraperStatus(taskId: string): Promise<ScraperStatus> {
-        const response = await apiClient.client.get(`/api/v1/scraper/scraper-status/${taskId}`);
+        const response = await apiClient.client.get(`/api/v1/scrapermgmt/scraper-status/${taskId}`);
         return response.data;
     },
 
     // Получить активные задачи (только для суперадмина)
     async getActiveTasks(): Promise<ActiveTasksResponse> {
-        const response = await apiClient.client.get('/api/v1/scraper/active-tasks');
+        const response = await apiClient.client.get('/api/v1/scrapermgmt/active-tasks');
         return response.data;
     },
 
     // Отменить все задачи (только для суперадмина)
     async cancelAllTasks(): Promise<CancelTasksResponse> {
-        const response = await apiClient.client.post('/api/v1/scraper/cancel-all-tasks');
+        const response = await apiClient.client.post('/api/v1/scrapermgmt/cancel-all-tasks');
         return response.data;
     },
 
@@ -97,19 +97,19 @@ export const scraperApi = {
 
     // Синхронизировать счетчики задач
     async syncTasks(): Promise<SyncTasksResponse> {
-        const response = await apiClient.client.post('/api/v1/scraper/sync-tasks');
+        const response = await apiClient.client.post('/api/v1/scrapermgmt/sync-tasks');
         return response.data;
     },
 
     // Очистить мои задачи
     async cleanupMyTasks(): Promise<CleanupTasksResponse> {
-        const response = await apiClient.client.post('/api/v1/scraper/cleanup-my-tasks');
+        const response = await apiClient.client.post('/api/v1/scrapermgmt/cleanup-my-tasks');
         return response.data;
     },
 
     // Проверить готовность системы
     async checkReadiness(): Promise<ReadinessResponse> {
-        const response = await apiClient.client.get('/api/v1/scraper/check-readiness');
+        const response = await apiClient.client.get('/api/v1/scrapermgmt/check-readiness');
         return response.data;
     }
 };

@@ -16,12 +16,14 @@ import {
     Menu,
     X,
     Download,
-    Contact
+    Contact,
+    BarChart3
 } from 'lucide-react';
 import { ToastProvider } from '@/lib/contexts/ToastContext';
 
 const navigation = [
     { name: 'Главная', href: '/dashboard', icon: Home },
+    { name: 'Аналитика', href: '/dashboard/analytics', icon: BarChart3 },
     { name: 'Продукты', href: '/dashboard/products', icon: Package },
     { name: 'Бренды', href: '/dashboard/brands', icon: Tag },
     { name: 'Категории', href: '/dashboard/categories', icon: FolderOpen },

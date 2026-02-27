@@ -1,11 +1,6 @@
-// src/lib/api.ts (исправленный)
 import axios, { AxiosInstance, AxiosError } from 'axios';
 import Cookies from 'js-cookie';
-import {
-    AdminLoginRequest,
-    AdminLoginResponse,
-    ApiError
-} from '@/types/admin';
+import { AdminLoginRequest, AdminLoginResponse, ApiError } from '@/types/admin';
 
 class ApiClient {
     public client: AxiosInstance;
@@ -16,139 +11,102 @@ class ApiClient {
         this.client = axios.create({
             baseURL: process.env.NEXT_PUBLIC_API_URL,
             timeout: 30000,
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
         });
 
         this.setupInterceptors();
     }
 
     private setupInterceptors() {
-        // Request interceptor - добавляем токен
-        this.client.interceptors.request.use(
-            (config) => {
-                const token = Cookies.get('access_token');
-                if (token) {
-                    config.headers.Authorization = `Bearer ${token}`;
-                }
-                return config;
-            },
-            (error) => Promise.reject(error)
-        );
+        this.client.interceptors.request.use((config) => {
+            const token = Cookies.get('access_token');
+            if (token) {
+                config.headers.Authorization = `Bearer ${token}`;
+            }
+            return config;
+        });
 
-        // Response interceptor - обрабатываем ошибки и обновляем токены
         this.client.interceptors.response.use(
             (response) => response,
             async (error: AxiosError) => {
-                const originalRequest = error.config;
+                const original = error.config;
 
-                if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
-                    originalRequest._retry = true;
-
-                    // Если уже идет обновление токена, ждем его завершения
-                    if (this.isRefreshing) {
-                        try {
-                            const newToken = await this.refreshPromise;
-                            if (newToken) {
-                                originalRequest.headers.Authorization = `Bearer ${newToken}`;
-                                return this.client(originalRequest);
-                            }
-                        } catch {
-                            this.handleAuthFailure();
-                            return Promise.reject(error);
-                        }
-                    }
-
-                    try {
-                        const newToken = await this.refreshToken();
-                        if (newToken) {
-                            originalRequest.headers.Authorization = `Bearer ${newToken}`;
-                            return this.client(originalRequest);
-                        } else {
-                            this.handleAuthFailure();
-                        }
-                    } catch (refreshError) {
-                        console.error('Token refresh failed:', refreshError);
-                        this.handleAuthFailure();
-                        return Promise.reject(refreshError);
-                    }
+                if (![401, 403].includes(error.response?.status ?? 0) || !original || original._retry) {
+                    return Promise.reject(this.parseError(error));
                 }
 
-                return Promise.reject(this.handleError(error));
+                original._retry = true;
+
+                if (this.isRefreshing) {
+                    const token = await this.refreshPromise;
+                    if (token) {
+                        original.headers.Authorization = `Bearer ${token}`;
+                        return this.client(original);
+                    }
+                    this.handleAuthFailure();
+                    return Promise.reject(error);
+                }
+
+                const newToken = await this.refreshToken();
+                if (newToken) {
+                    original.headers.Authorization = `Bearer ${newToken}`;
+                    return this.client(original);
+                }
+
+                this.handleAuthFailure();
+                return Promise.reject(error);
             }
         );
     }
 
     private handleAuthFailure() {
-        console.log('Authentication failed, clearing tokens and redirecting to login');
-        this.logout();
-        // Не делаем мгновенный редирект, дадим возможность пользователю доделать действия
+        this.clearTokens();
         setTimeout(() => {
-            if (window.location.pathname !== 'admin/login') {
-                window.location.href = 'admin/login';
+            if (window.location.pathname !== '/login') {
+                window.location.href = '/login';
             }
-        }, 1000);
+        }, 500);
     }
 
     private async refreshToken(): Promise<string | null> {
-        if (this.refreshPromise && this.isRefreshing) {
+        if (this.isRefreshing && this.refreshPromise) {
             return this.refreshPromise;
         }
 
         this.isRefreshing = true;
-        this.refreshPromise = this.doRefreshToken();
+        this.refreshPromise = this.doRefresh();
 
         try {
-            const result = await this.refreshPromise;
-            return result;
+            return await this.refreshPromise;
         } finally {
             this.refreshPromise = null;
             this.isRefreshing = false;
         }
     }
 
-    private async doRefreshToken(): Promise<string | null> {
+    private async doRefresh(): Promise<string | null> {
         const refreshToken = Cookies.get('refresh_token');
-        if (!refreshToken) {
-            console.log('No refresh token available');
-            throw new Error('No refresh token');
-        }
+        if (!refreshToken) return null;
 
         try {
-            console.log('Attempting to refresh token...');
-
-            // ИСПРАВЛЕНО: отправляем объект с полем refresh_token
             const response = await axios.post(
-                `${process.env.NEXT_PUBLIC_API_URL}/api/v1/admin/auth/refresh`,
-                { refresh_token: refreshToken }, // Теперь отправляем объект, а не строку
-                {
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                }
+                `${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/refresh`,
+                { refresh_token: refreshToken },
+                { headers: { 'Content-Type': 'application/json' } }
             );
 
-            const { access_token, refresh_token: newRefreshToken } = response.data;
+            const { access_token, refresh_token: newRefresh } = response.data;
 
-            console.log('Token refreshed successfully');
-
-            // Сохраняем новые токены с увеличенным временем жизни
-            Cookies.set('access_token', access_token, { expires: 2 / 24 }); // 2 часа
-            if (newRefreshToken) {
-                Cookies.set('refresh_token', newRefreshToken, { expires: 7 }); // 7 дней
+            Cookies.set('access_token', access_token, { expires: 2 / 24 });
+            if (newRefresh) {
+                Cookies.set('refresh_token', newRefresh, { expires: 7 });
             }
 
             return access_token;
         } catch (error) {
-            console.error('Token refresh failed:', error);
-
-            // Если refresh токен тоже невалиден, очищаем все
-            if (axios.isAxiosError(error) && (error.response?.status === 401 || error.response?.status === 422)) {
-                console.log('Refresh token is invalid, clearing all tokens');
+            if (axios.isAxiosError(error) && [401, 422].includes(error.response?.status ?? 0)) {
                 this.clearTokens();
             }
-
             return null;
         }
     }
@@ -159,67 +117,53 @@ class ApiClient {
         Cookies.remove('user');
     }
 
-    private handleError(error: AxiosError): ApiError {
+    private parseError(error: AxiosError): ApiError {
         if (error.response?.data) {
             return error.response.data as ApiError;
         }
-
         return {
-            detail: error.message || 'Произошла неизвестная ошибка',
+            detail: error.message || 'Unknown error',
             status_code: error.response?.status,
         };
     }
 
-    // Авторизация
     async login(credentials: AdminLoginRequest): Promise<AdminLoginResponse> {
         const response = await this.client.post<AdminLoginResponse>(
-            '/api/v1/admin/auth/login',
+            '/api/v1/auth/login',
             credentials
         );
 
         const { access_token, refresh_token, user } = response.data;
 
-        // Сохраняем токены в cookies с увеличенным временем
-        Cookies.set('access_token', access_token, { expires: 2 / 24 }); // 2 часа
-        Cookies.set('refresh_token', refresh_token, { expires: 7 }); // 7 дней
+        Cookies.set('access_token', access_token, { expires: 2 / 24 });
+        Cookies.set('refresh_token', refresh_token, { expires: 7 });
         Cookies.set('user', JSON.stringify(user), { expires: 7 });
-
-        console.log('User logged in successfully');
 
         return response.data;
     }
 
     async logout(): Promise<void> {
         try {
-            await this.client.post('/api/v1/admin/auth/logout');
-        } catch (error) {
-            console.error('Logout error:', error);
+            await this.client.post('/api/v1/auth/logout');
         } finally {
-            // Очищаем токены
             this.clearTokens();
-            console.log('User logged out, tokens cleared');
         }
     }
 
-    // Проверка авторизации
     isAuthenticated(): boolean {
-        const hasAccessToken = !!Cookies.get('access_token');
-        const hasRefreshToken = !!Cookies.get('refresh_token');
-        return hasAccessToken || hasRefreshToken; // Достаточно любого из токенов
+        return !!(Cookies.get('access_token') || Cookies.get('refresh_token'));
     }
 
     getCurrentUser() {
-        const userCookie = Cookies.get('user');
-        return userCookie ? JSON.parse(userCookie) : null;
+        const cookie = Cookies.get('user');
+        return cookie ? JSON.parse(cookie) : null;
     }
 
-    // Проверка валидности токена
     async checkTokenValidity(): Promise<boolean> {
         try {
-            await this.client.get('/api/v1/admin/auth/me');
+            await this.client.get('/api/v1/auth/me');
             return true;
-        } catch (error) {
-            console.log('Token validation failed, but this is normal if token expired', error);
+        } catch {
             return false;
         }
     }

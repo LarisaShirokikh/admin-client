@@ -13,441 +13,262 @@ import {
     ProductsStats,
     ProductUpdate,
     ImageUpdateData,
-    NewProductImage
-} from "@/types/products";
-import { apiClient } from "../api";
+    NewProductImage,
+} from '@/types/products';
+import { apiClient } from '../api';
 
-// API Methods
+const API = '/api/v1/productsmgmt';
+
+function cleanParams<T extends object>(params: T): Record<string, unknown> {
+    return Object.fromEntries(
+        Object.entries(params).filter(([, v]) => v !== undefined && v !== '')
+    );
+}
+
 export const productsApi = {
-    // ========== ОСНОВНЫЕ CRUD ОПЕРАЦИИ ==========
+    // === CRUD ===
 
-    // Получить список продуктов
     async getProducts(params: ProductsListParams = {}): Promise<ProductListItem[]> {
-        // Очищаем undefined значения
-        const cleanParams = Object.fromEntries(
-            Object.entries(params).filter(([, value]) => value !== undefined && value !== '')
-        );
-
-        const response = await apiClient.client.get('/api/v1/products/', { params: cleanParams });
+        const response = await apiClient.client.get(`${API}/`, { params: cleanParams(params) });
         return response.data;
     },
 
-    // Получить статистику продуктов
     async getStats(): Promise<ProductsStats> {
-        const response = await apiClient.client.get('/api/v1/products/stats/summary');
+        const response = await apiClient.client.get(`${API}/stats/summary`);
         return response.data;
     },
 
-    // Получить количество продуктов
     async getCount(params: Partial<ProductsListParams> = {}): Promise<{ count: number }> {
-        // Фильтруем только нужные параметры для count endpoint
-        const allowedParams = [
+        const allowed = [
             'search', 'brand_id', 'catalog_id', 'category_id',
-            'is_active', 'in_stock', 'price_from', 'price_to'
+            'is_active', 'in_stock', 'price_from', 'price_to',
         ];
-
-        const filteredParams = Object.fromEntries(
-            Object.entries(params)
-                .filter(([key, value]) => allowedParams.includes(key) && value !== undefined && value !== '')
+        const filtered = Object.fromEntries(
+            Object.entries(params).filter(([k, v]) => allowed.includes(k) && v !== undefined && v !== '')
         );
-
-        const response = await apiClient.client.get('/api/v1/products/count', { params: filteredParams });
+        const response = await apiClient.client.get(`${API}/count`, { params: filtered });
         return response.data;
     },
 
-    // Получить продукт по ID
     async getProduct(id: number): Promise<ProductDetail> {
-        const response = await apiClient.client.get(`/api/v1/products/${id}`);
+        const response = await apiClient.client.get(`${API}/${id}`);
         return response.data;
     },
 
-    // Получить продукт по slug
     async getProductBySlug(slug: string): Promise<ProductDetail> {
-        const response = await apiClient.client.get(`/api/v1/products/by-slug/${slug}`);
+        const response = await apiClient.client.get(`${API}/by-slug/${slug}`);
         return response.data;
     },
 
-    // Создать продукт
     async createProduct(product: ProductCreate): Promise<ProductDetail> {
-        const processedProduct = await this.processProductImages(product);
-        const response = await apiClient.client.post('/api/v1/products/', processedProduct);
+        const processed = await this.processProductImages(product);
+        const response = await apiClient.client.post(`${API}/`, processed);
         return response.data;
     },
 
-    // Обновить продукт
     async updateProduct(id: number, product: ProductUpdate): Promise<ProductDetail> {
-        const processedProduct = await this.processProductUpdateImages(product);
-        const response = await apiClient.client.put(`/api/v1/products/${id}`, processedProduct);
+        const processed = await this.processProductUpdateImages(product);
+        const response = await apiClient.client.put(`${API}/${id}`, processed);
         return response.data;
     },
 
-    // Частично обновить продукт
     async partialUpdateProduct(id: number, product: ProductUpdate): Promise<ProductDetail> {
-        const processedProduct = await this.processProductUpdateImages(product);
-        const response = await apiClient.client.patch(`/api/v1/products/${id}`, processedProduct);
+        const processed = await this.processProductUpdateImages(product);
+        const response = await apiClient.client.patch(`${API}/${id}`, processed);
         return response.data;
     },
 
-    // ========== ОБРАБОТКА ИЗОБРАЖЕНИЙ ==========
+    // === Images ===
 
-    // Обработка изображений для создания продукта
     async processProductImages(product: ProductCreate): Promise<ProductCreate> {
-        if (!product.images || product.images.length === 0) {
-            return product;
-        }
+        if (!product.images?.length) return product;
 
-        const processedImages: NewProductImage[] = [];
-
+        const processed: NewProductImage[] = [];
         for (const image of product.images) {
             if (image.file) {
-                // Загружаем файл и получаем URL
                 try {
-                    const uploadResponse = await this.uploadImageFile(image.file);
-                    processedImages.push({
-                        url: uploadResponse.url,
-                        is_main: image.is_main,
-                        alt_text: image.alt_text
-                    });
-                } catch (error) {
-                    console.error('Ошибка загрузки файла изображения:', error);
-                    // Пропускаем изображение при ошибке
-                    continue;
-                }
+                    const uploaded = await this.uploadImageFile(image.file);
+                    processed.push({ url: uploaded.url, is_main: image.is_main, alt_text: image.alt_text });
+                } catch { continue; }
             } else if (image.url) {
-                // Добавляем изображение по URL
-                processedImages.push({
-                    url: image.url,
-                    is_main: image.is_main,
-                    alt_text: image.alt_text
-                });
+                processed.push({ url: image.url, is_main: image.is_main, alt_text: image.alt_text });
             }
         }
-
-        return {
-            ...product,
-            images: processedImages
-        };
+        return { ...product, images: processed };
     },
 
-    // Обработка изображений для обновления продукта
     async processProductUpdateImages(product: ProductUpdate): Promise<ProductUpdate> {
-        if (!product.images) {
-            return product;
-        }
+        if (!product.images) return product;
 
-        const imageUpdates = product.images;
-        const processedUpdates: ImageUpdateData = {
+        const updates: ImageUpdateData = {
             new_images: [],
-            delete_image_ids: imageUpdates.delete_image_ids || [],
-            main_image_id: imageUpdates.main_image_id || null
+            delete_image_ids: product.images.delete_image_ids || [],
+            main_image_id: product.images.main_image_id || null,
         };
 
-        // Обрабатываем новые изображения
-        if (imageUpdates.new_images && imageUpdates.new_images.length > 0) {
-            for (const newImage of imageUpdates.new_images) {
-                if (newImage.file) {
+        if (product.images.new_images?.length) {
+            for (const img of product.images.new_images) {
+                if (img.file) {
                     try {
-                        // Загружаем файл и получаем URL
-                        const uploadResponse = await this.uploadImageFile(newImage.file);
-                        processedUpdates.new_images!.push({
-                            url: uploadResponse.url,
-                            is_main: newImage.is_main,
-                            alt_text: newImage.alt_text
-                        });
-                    } catch (error) {
-                        console.error('Ошибка загрузки файла изображения:', error);
-                        // Пропускаем изображение при ошибке
-                        continue;
-                    }
-                } else if (newImage.url) {
-                    // Добавляем изображение по URL
-                    processedUpdates.new_images!.push({
-                        url: newImage.url,
-                        is_main: newImage.is_main,
-                        alt_text: newImage.alt_text
-                    });
+                        const uploaded = await this.uploadImageFile(img.file);
+                        updates.new_images!.push({ url: uploaded.url, is_main: img.is_main, alt_text: img.alt_text });
+                    } catch { continue; }
+                } else if (img.url) {
+                    updates.new_images!.push({ url: img.url, is_main: img.is_main, alt_text: img.alt_text });
                 }
             }
         }
 
-        return {
-            ...product,
-            images: processedUpdates
-        };
+        return { ...product, images: updates };
     },
 
-    // ========== РАБОТА С ИЗОБРАЖЕНИЯМИ ==========
-
-    // Загрузить изображение файлом
     async uploadImageFile(file: File): Promise<{ url: string; id?: number }> {
-        try {
-            const formData = new FormData();
-            formData.append('file', file);
-
-            const response = await apiClient.client.post('/api/v1/products/images/upload', formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
-                },
-            });
-
-            return {
-                url: response.data.url,
-                id: response.data.id
-            };
-        } catch (error) {
-            console.error('Error uploading image file:', error);
-            throw new Error('Не удалось загрузить изображение');
-        }
-    },
-
-    // Загрузить изображение файлом с привязкой к продукту
-    async uploadImage(file: File, productId?: number): Promise<ImageUploadResponse> {
-        try {
-            const formData = new FormData();
-            formData.append('file', file);
-            if (productId) {
-                formData.append('product_id', productId.toString());
-            }
-
-            const response = await apiClient.client.post('/api/v1/products/images/upload', formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
-                },
-            });
-            return response.data;
-        } catch (error) {
-            console.error('Error uploading image:', error);
-            throw error;
-        }
-    },
-
-    // Добавить изображение по URL
-    async addImageByUrl(url: string, productId: number, isMain: boolean = false): Promise<ImageUploadResponse> {
-        try {
-            const response = await apiClient.client.post('/api/v1/products/images/add-by-url', {
-                url,
-                product_id: productId,
-                is_main: isMain
-            });
-            return response.data;
-        } catch (error) {
-            console.error('Error adding image by URL:', error);
-            throw error;
-        }
-    },
-
-    // Удалить изображение
-    async deleteImage(imageId: number): Promise<void> {
-        try {
-            await apiClient.client.delete(`/api/v1/products/images/${imageId}`);
-        } catch (error) {
-            console.error('Error deleting image:', error);
-            throw error;
-        }
-    },
-
-    // Установить главное изображение
-    async setMainImage(productId: number, imageId: number): Promise<ProductImage> {
-        try {
-            const response = await apiClient.client.post(`/api/v1/products/${productId}/images/${imageId}/set-main`);
-            return response.data;
-        } catch (error) {
-            console.error('Error setting main image:', error);
-            throw error;
-        }
-    },
-
-    // Получить изображения товара
-    async getProductImages(productId: number): Promise<ProductImage[]> {
-        try {
-            const response = await apiClient.client.get(`/api/v1/products/${productId}/images`);
-            return response.data;
-        } catch (error) {
-            console.error('Error fetching product images:', error);
-            throw error;
-        }
-    },
-
-    // Обновить порядок изображений
-    async updateImagesOrder(productId: number, imageIds: number[]): Promise<ProductImage[]> {
-        try {
-            const response = await apiClient.client.post(`/api/v1/products/${productId}/images/reorder`, {
-                image_ids: imageIds
-            });
-            return response.data;
-        } catch (error) {
-            console.error('Error updating images order:', error);
-            throw error;
-        }
-    },
-
-    async batchUpdateProducts(data: BatchUpdateRequest): Promise<BatchUpdateResponse> {
-        const response = await apiClient.client.patch('/api/v1/products/batch', data);
-        return response.data;
-    },
-
-    async bulkUpdatePrices(data: PriceUpdateData): Promise<BulkPriceUpdateResponse> {
-        console.log('Bulk update prices data:', data);
-        if (!data.scope || !data.price_type || !data.change_type || !data.direction) {
-            throw new Error('Не все обязательные поля заполнены');
-        }
-        if (data.change_value <= 0) {
-            throw new Error('Значение изменения должно быть больше 0');
-        }
-
-        const response = await apiClient.client.post('/api/v1/products/bulk-update-prices', data);
-        return response.data;
-    },
-
-    // Получение количества товаров для оценки изменения цен
-    async getProductsCountForPriceUpdate(data: Partial<PriceUpdateData>): Promise<{ count: number }> {
-        const response = await apiClient.client.post('/api/v1/products/count-for-price-update', data);
-        return response.data;
-    },
-
-
-    // Переключить статус продукта
-    async toggleProductStatus(id: number): Promise<ProductListItem> {
-        const response = await apiClient.client.post(`/api/v1/products/${id}/toggle-status`);
-        return response.data;
-    },
-
-    // Мягкое удаление продукта
-    async softDeleteProduct(id: number): Promise<ProductListItem> {
-        const response = await apiClient.client.delete(`/api/v1/products/${id}/soft`);
-        return response.data;
-    },
-
-    // Полное удаление продукта (только для суперадмина)
-    async deleteProduct(id: number): Promise<void> {
-        await apiClient.client.delete(`/api/v1/products/${id}`);
-    },
-
-    // ========== ИМПОРТ/ЭКСПОРТ ==========
-
-    // Импорт из CSV
-    async importCSV(file: File): Promise<{ status: string; filename: string; message: string; initiated_by: string }> {
         const formData = new FormData();
         formData.append('file', file);
+        const response = await apiClient.client.post(`${API}/images/upload`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        return { url: response.data.url, id: response.data.id };
+    },
 
-        const response = await apiClient.client.post('/api/v1/products/import', formData, {
-            headers: {
-                'Content-Type': 'multipart/form-data',
-            },
+    async uploadImage(file: File, productId?: number): Promise<ImageUploadResponse> {
+        const formData = new FormData();
+        formData.append('file', file);
+        if (productId) formData.append('product_id', productId.toString());
+        const response = await apiClient.client.post(`${API}/images/upload`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
         });
         return response.data;
     },
 
-    // Экспорт в CSV
-    async exportToCSV(params?: Partial<ProductFilter>): Promise<Blob> {
-        try {
-            const response = await apiClient.client.get('/api/v1/products/export', {
-                params,
-                responseType: 'blob'
-            });
-            return response.data;
-        } catch (error) {
-            console.error('Error exporting products:', error);
-            throw error;
-        }
+    async addImageByUrl(url: string, productId: number, isMain = false): Promise<ImageUploadResponse> {
+        const response = await apiClient.client.post(`${API}/images/add-by-url`, {
+            url, product_id: productId, is_main: isMain,
+        });
+        return response.data;
     },
 
-    // ========== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ==========
+    async deleteImage(imageId: number): Promise<void> {
+        await apiClient.client.delete(`${API}/images/${imageId}`);
+    },
 
-    // Валидация URL изображения
+    async setMainImage(productId: number, imageId: number): Promise<ProductImage> {
+        const response = await apiClient.client.post(`${API}/${productId}/images/${imageId}/set-main`);
+        return response.data;
+    },
+
+    async getProductImages(productId: number): Promise<ProductImage[]> {
+        const response = await apiClient.client.get(`${API}/${productId}/images`);
+        return response.data;
+    },
+
+    async updateImagesOrder(productId: number, imageIds: number[]): Promise<ProductImage[]> {
+        const response = await apiClient.client.post(`${API}/${productId}/images/reorder`, { image_ids: imageIds });
+        return response.data;
+    },
+
+    // === Batch & Prices ===
+
+    async batchUpdateProducts(data: BatchUpdateRequest): Promise<BatchUpdateResponse> {
+        const response = await apiClient.client.patch(`${API}/batch`, data);
+        return response.data;
+    },
+
+    async bulkUpdatePrices(data: PriceUpdateData): Promise<BulkPriceUpdateResponse> {
+        if (!data.scope || !data.price_type || !data.change_type || !data.direction) {
+            throw new Error('Missing required fields');
+        }
+        if (data.change_value <= 0) {
+            throw new Error('Change value must be positive');
+        }
+        const response = await apiClient.client.post(`${API}/bulk-update-prices`, data);
+        return response.data;
+    },
+
+    async getProductsCountForPriceUpdate(data: Partial<PriceUpdateData>): Promise<{ count: number }> {
+        const response = await apiClient.client.post(`${API}/count-for-price-update`, data);
+        return response.data;
+    },
+
+    // === Status & Delete ===
+
+    async toggleProductStatus(id: number): Promise<ProductListItem> {
+        const response = await apiClient.client.post(`${API}/${id}/toggle-status`);
+        return response.data;
+    },
+
+    async softDeleteProduct(id: number): Promise<ProductListItem> {
+        const response = await apiClient.client.delete(`${API}/${id}/soft`);
+        return response.data;
+    },
+
+    async deleteProduct(id: number): Promise<void> {
+        await apiClient.client.delete(`${API}/${id}`);
+    },
+
+    // === Import/Export ===
+
+    async importCSV(file: File): Promise<{ status: string; filename: string }> {
+        const formData = new FormData();
+        formData.append('file', file);
+        const response = await apiClient.client.post(`${API}/import`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        return response.data;
+    },
+
+    async exportToCSV(params?: Partial<ProductFilter>): Promise<Blob> {
+        const response = await apiClient.client.get(`${API}/export`, {
+            params, responseType: 'blob',
+        });
+        return response.data;
+    },
+
+    // === Utils ===
+
     async validateImageUrl(url: string): Promise<boolean> {
         try {
             const response = await fetch(url, { method: 'HEAD' });
-            const contentType = response.headers.get('content-type');
-            return response.ok && contentType !== null && contentType.startsWith('image/');
+            const type = response.headers.get('content-type');
+            return response.ok && !!type?.startsWith('image/');
         } catch {
             return false;
         }
     },
 
-    // Получение информации о файле изображения
-    getImageFileInfo(file: File): {
-        name: string;
-        size: number;
-        type: string;
-        isValidImage: boolean;
-        sizeFormatted: string;
-    } {
-        const isValidImage = file.type.startsWith('image/');
-        const sizeInMB = file.size / (1024 * 1024);
-        const sizeFormatted = sizeInMB > 1
-            ? `${sizeInMB.toFixed(2)} MB`
-            : `${(file.size / 1024).toFixed(2)} KB`;
-
-        return {
-            name: file.name,
-            size: file.size,
-            type: file.type,
-            isValidImage,
-            sizeFormatted
-        };
-    },
-
-    // Создание превью изображения из файла
     createImagePreview(file: File): Promise<string> {
         return new Promise((resolve, reject) => {
-            if (!file.type.startsWith('image/')) {
-                reject(new Error('Файл не является изображением'));
-                return;
-            }
-
+            if (!file.type.startsWith('image/')) return reject(new Error('Not an image'));
             const reader = new FileReader();
-            reader.onload = (e) => {
-                if (e.target?.result) {
-                    resolve(e.target.result as string);
-                } else {
-                    reject(new Error('Не удалось создать превью'));
-                }
-            };
-            reader.onerror = () => reject(new Error('Ошибка чтения файла'));
+            reader.onload = (e) => e.target?.result ? resolve(e.target.result as string) : reject(new Error('Preview failed'));
+            reader.onerror = () => reject(new Error('Read error'));
             reader.readAsDataURL(file);
         });
     },
 
-    // Оптимизация изображения (сжатие)
-    async compressImage(file: File, maxWidth: number = 1200, quality: number = 0.8): Promise<File> {
+    async compressImage(file: File, maxWidth = 1200, quality = 0.8): Promise<File> {
         return new Promise((resolve, reject) => {
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
             const img = new Image();
 
             img.onload = () => {
-                // Вычисляем новые размеры с сохранением пропорций
                 const ratio = Math.min(maxWidth / img.width, maxWidth / img.height);
-                const newWidth = img.width * ratio;
-                const newHeight = img.height * ratio;
+                canvas.width = img.width * ratio;
+                canvas.height = img.height * ratio;
+                ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-                canvas.width = newWidth;
-                canvas.height = newHeight;
-
-                // Рисуем изображение на canvas
-                ctx?.drawImage(img, 0, 0, newWidth, newHeight);
-
-                // Конвертируем в blob
                 canvas.toBlob(
-                    (blob) => {
-                        if (blob) {
-                            const compressedFile = new File([blob], file.name, {
-                                type: file.type,
-                                lastModified: Date.now()
-                            });
-                            resolve(compressedFile);
-                        } else {
-                            reject(new Error('Не удалось сжать изображение'));
-                        }
-                    },
+                    (blob) => blob
+                        ? resolve(new File([blob], file.name, { type: file.type, lastModified: Date.now() }))
+                        : reject(new Error('Compression failed')),
                     file.type,
                     quality
                 );
             };
 
-            img.onerror = () => reject(new Error('Не удалось загрузить изображение для сжатия'));
+            img.onerror = () => reject(new Error('Image load failed'));
             img.src = URL.createObjectURL(file);
         });
-    }
+    },
 };

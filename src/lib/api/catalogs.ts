@@ -10,48 +10,48 @@ export const catalogsApi = {
         active_only?: boolean;
         search?: string;
     }): Promise<Catalog[]> {
-        const response = await apiClient.client.get('/api/v1/catalogs/', { params });
+        const response = await apiClient.client.get('/api/v1/catalogsmgmt/', { params });
         return response.data;
     },
 
     // Получить каталог по ID
     async getById(id: number): Promise<Catalog> {
-        const response = await apiClient.client.get(`/api/v1/catalogs/${id}`);
+        const response = await apiClient.client.get(`/api/v1/catalogsmgmt/${id}`);
         return response.data;
     },
 
     // Получить каталог по slug
     async getBySlug(slug: string): Promise<Catalog> {
-        const response = await apiClient.client.get(`/api/v1/catalogs/slug/${slug}`);
+        const response = await apiClient.client.get(`/api/v1/catalogsmgmt/slug/${slug}`);
         return response.data;
     },
 
     // Создать новый каталог
     async create(data: CatalogCreate): Promise<Catalog> {
-        const response = await apiClient.client.post('/api/v1/catalogs/', data);
+        const response = await apiClient.client.post('/api/v1/catalogsmgmt/', data);
         return response.data;
     },
 
     // Обновить каталог
     async update(id: number, data: CatalogUpdate): Promise<Catalog> {
-        const response = await apiClient.client.put(`/api/v1/catalogs/${id}`, data);
+        const response = await apiClient.client.put(`/api/v1/catalogsmgmt/${id}`, data);
         return response.data;
     },
 
     // Частично обновить каталог
     async patch(id: number, data: Partial<CatalogUpdate>): Promise<Catalog> {
-        const response = await apiClient.client.patch(`/api/v1/catalogs/${id}`, data);
+        const response = await apiClient.client.patch(`/api/v1/catalogsmgmt/${id}`, data);
         return response.data;
     },
 
     // Удалить каталог (только для суперадмина)
     async delete(id: number): Promise<void> {
-        await apiClient.client.delete(`/api/v1/catalogs/${id}`);
+        await apiClient.client.delete(`/api/v1/catalogsmgmt/${id}`);
     },
 
     // Переключить статус активности каталога
     async toggleStatus(id: number): Promise<Catalog> {
-        const response = await apiClient.client.post(`/api/v1/catalogs/${id}/toggle-status`);
+        const response = await apiClient.client.post(`/api/v1/catalogsmgmt/${id}/toggle-status`);
         return response.data;
     },
 
@@ -64,13 +64,13 @@ export const catalogsApi = {
         requested_by: string;
         user_role: string;
     }> {
-        const response = await apiClient.client.get('/api/v1/catalogs/stats/summary');
+        const response = await apiClient.client.get('/api/v1/catalogsmgmt/stats/summary');
         return response.data;
     },
 
     // Получить активные каталоги
     async getActive(params?: { skip?: number; limit?: number }): Promise<Catalog[]> {
-        const response = await apiClient.client.get('/api/v1/catalogs/', {
+        const response = await apiClient.client.get('/api/v1/catalogsmgmt/', {
             params: { ...params, active_only: true }
         });
         return response.data;
@@ -78,7 +78,7 @@ export const catalogsApi = {
 
     // Поиск каталогов
     async search(query: string, params?: { skip?: number; limit?: number }): Promise<Catalog[]> {
-        const response = await apiClient.client.get('/api/v1/catalogs/', {
+        const response = await apiClient.client.get('/api/v1/catalogsmgmt/', {
             params: { search: query, ...params }
         });
         return response.data;
@@ -86,7 +86,7 @@ export const catalogsApi = {
 
     // Получить каталоги по категории
     async getByCategory(categoryId: number, params?: { skip?: number; limit?: number }): Promise<Catalog[]> {
-        const response = await apiClient.client.get('/api/v1/catalogs/', {
+        const response = await apiClient.client.get('/api/v1/catalogsmgmt/', {
             params: { category_id: categoryId, ...params }
         });
         return response.data;
@@ -94,7 +94,7 @@ export const catalogsApi = {
 
     // Получить каталоги по бренду
     async getByBrand(brandId: number, params?: { skip?: number; limit?: number }): Promise<Catalog[]> {
-        const response = await apiClient.client.get('/api/v1/catalogs/', {
+        const response = await apiClient.client.get('/api/v1/catalogsmgmt/', {
             params: { brand_id: brandId, ...params }
         });
         return response.data;

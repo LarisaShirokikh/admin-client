@@ -5,53 +5,53 @@ import { Brand, BrandCreate, BrandUpdate } from '@/types/admin';
 export const brandsApi = {
     // Получить список всех брендов
     async getAll(params?: { skip?: number; limit?: number }): Promise<Brand[]> {
-        const response = await apiClient.client.get('/api/v1/brands/', { params });
+        const response = await apiClient.client.get('/api/v1/brandsmgmt/', { params });
         return response.data;
     },
 
     async getBrands(): Promise<Brand[]> {
-        const response = await apiClient.client.get('/api/v1/brands/');
+        const response = await apiClient.client.get('/api/v1/brandsmgmt/');
         return response.data;
     },
 
     // Получить бренд по ID
     async getById(id: number): Promise<Brand> {
-        const response = await apiClient.client.get(`/api/v1/brands/${id}`);
+        const response = await apiClient.client.get(`/api/v1/brandsmgmt/${id}`);
         return response.data;
     },
 
     // Получить бренд по slug
     async getBySlug(slug: string): Promise<Brand> {
-        const response = await apiClient.client.get(`/api/v1/brands/slug/${slug}`);
+        const response = await apiClient.client.get(`/api/v1/brandsmgmt/slug/${slug}`);
         return response.data;
     },
 
     // Создать новый бренд
     async create(data: BrandCreate): Promise<Brand> {
-        const response = await apiClient.client.post('/api/v1/brands/', data);
+        const response = await apiClient.client.post('/api/v1/brandsmgmt/', data);
         return response.data;
     },
 
     // Обновить бренд
     async update(id: number, data: BrandUpdate): Promise<Brand> {
-        const response = await apiClient.client.put(`/api/v1/brands/${id}`, data);
+        const response = await apiClient.client.put(`/api/v1/brandsmgmt/${id}`, data);
         return response.data;
     },
 
     // Частично обновить бренд
     async patch(id: number, data: Partial<BrandUpdate>): Promise<Brand> {
-        const response = await apiClient.client.patch(`/api/v1/brands/${id}`, data);
+        const response = await apiClient.client.patch(`/api/v1/brandsmgmt/${id}`, data);
         return response.data;
     },
 
     // Удалить бренд (только для суперадмина)
     async delete(id: number): Promise<void> {
-        await apiClient.client.delete(`/api/v1/brands/${id}`);
+        await apiClient.client.delete(`/api/v1/brandsmgmt/${id}`);
     },
 
     // Переключить статус активности бренда
     async toggleStatus(id: number): Promise<Brand> {
-        const response = await apiClient.client.post(`/api/v1/brands/${id}/toggle-status`);
+        const response = await apiClient.client.post(`/api/v1/brandsmgmt/${id}/toggle-status`);
         return response.data;
     },
 
@@ -64,13 +64,13 @@ export const brandsApi = {
         requested_by: string;
         user_role: string;
     }> {
-        const response = await apiClient.client.get('/api/v1/brands/stats/summary');
+        const response = await apiClient.client.get('/api/v1/brandsmgmt/stats/summary');
         return response.data;
     },
 
     // Поиск брендов
     async search(query: string, params?: { skip?: number; limit?: number }): Promise<Brand[]> {
-        const response = await apiClient.client.get('/api/v1/brands/search', {
+        const response = await apiClient.client.get('/api/v1/brandsmgmt/search', {
             params: { q: query, ...params }
         });
         return response.data;
@@ -78,7 +78,7 @@ export const brandsApi = {
 
     // Получить количество брендов
     async getCount(params?: { is_active?: boolean }): Promise<{ count: number }> {
-        const response = await apiClient.client.get('/api/v1/brands/count', { params });
+        const response = await apiClient.client.get('/api/v1/brandsmgmt/count', { params });
         return response.data;
     },
 
@@ -92,7 +92,7 @@ export const brandsApi = {
         const formData = new FormData();
         formData.append('file', file);
 
-        const response = await apiClient.client.post('/api/v1/brands/import', formData, {
+        const response = await apiClient.client.post('/api/v1/brandsmgmt/import', formData, {
             headers: { 'Content-Type': 'multipart/form-data' }
         });
         return response.data;
@@ -100,7 +100,7 @@ export const brandsApi = {
 
     // Экспорт брендов в CSV
     async exportToCSV(): Promise<Blob> {
-        const response = await apiClient.client.get('/api/v1/brands/export', {
+        const response = await apiClient.client.get('/api/v1/brandsmgmt/export', {
             responseType: 'blob'
         });
         return response.data;
