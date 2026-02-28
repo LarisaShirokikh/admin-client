@@ -100,6 +100,17 @@ export const catalogsApi = {
         return response.data;
     },
 
+    async batchDelete(catalogIds: number[]): Promise<{ deleted: number; requested: number }> {
+        const response = await apiClient.client.post('/api/v1/catalogsmgmt/batch-delete', { catalog_ids: catalogIds });
+        return response.data;
+    },
+
+    // Удалить все каталоги с продуктами
+    async deleteAll(): Promise<{ deleted: number }> {
+        const response = await apiClient.client.delete('/api/v1/catalogsmgmt/all');
+        return response.data;
+    },
+
     // Валидация данных каталога (клиентская проверка)
     validateCatalog(data: CatalogCreate | CatalogUpdate): { valid: boolean; errors: string[] } {
         const errors: string[] = [];
