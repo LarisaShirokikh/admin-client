@@ -206,6 +206,16 @@ export const productsApi = {
         await apiClient.client.delete(`${API}/${id}`);
     },
 
+    async batchDelete(productIds: number[]): Promise<{ deleted: number; requested: number }> {
+        const response = await apiClient.client.post(`${API}/batch-delete`, { product_ids: productIds });
+        return response.data;
+    },
+
+    async deleteAll(): Promise<{ deleted: number }> {
+        const response = await apiClient.client.delete(`${API}/all`);
+        return response.data;
+    },
+
     // === Import/Export ===
 
     async importCSV(file: File): Promise<{ status: string; filename: string }> {

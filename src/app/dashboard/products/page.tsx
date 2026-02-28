@@ -279,6 +279,38 @@ export default function ProductsPage() {
         }
     };
 
+    const handleBatchDelete = async () => {
+        if (!isSuperuser) { showToast('error', 'Только суперадмин может удалять'); return; }
+        if (selectedProducts.length === 0) return;
+        if (!confirm(`Удалить ${selectedProducts.length} выбранных продуктов? Это необратимо!`)) return;
+        try {
+            const result = await productsApi.batchDelete(selectedProducts);
+            setSelectedProducts([]);
+            setSelectAll(false);
+            forceRefresh();
+            await loadStats();
+            showToast('success', `Удалено ${result.deleted} продуктов`);
+        } catch {
+            showToast('error', 'Ошибка при удалении');
+        }
+    };
+
+    const handleDeleteAll = async () => {
+        if (!isSuperuser) { showToast('error', 'Только суперадмин может удалять'); return; }
+        const input = prompt('Для удаления ВСЕХ продуктов введите "УДАЛИТЬ ВСЕ"');
+        if (input !== 'УДАЛИТЬ ВСЕ') return;
+        try {
+            const result = await productsApi.deleteAll();
+            setSelectedProducts([]);
+            setSelectAll(false);
+            forceRefresh();
+            await loadStats();
+            showToast('success', `Удалено ${result.deleted} продуктов`);
+        } catch {
+            showToast('error', 'Ошибка при удалении');
+        }
+    };
+
     // Single product edit
     const handleEditProduct = (product: ProductListItem) => {
         setEditingProduct(product);
@@ -447,6 +479,12 @@ export default function ProductsPage() {
                         className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">
                         <Plus className="h-4 w-4" /> Добавить
                     </button>
+                    {isSuperuser && (
+                        <button onClick={handleDeleteAll}
+                            className="flex items-center gap-2 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm">
+                            <Trash2 className="h-4 w-4" /> Удалить всё
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -636,6 +674,12 @@ export default function ProductsPage() {
                                         className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">
                                         Редактировать
                                     </button>
+                                    {isSuperuser && (
+                                        <button onClick={handleBatchDelete}
+                                            className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700">
+                                            Удалить выбранные
+                                        </button>
+                                    )}
                                     <button onClick={() => setSelectedProducts([])}
                                         className="px-3 py-1 bg-gray-200 text-gray-700 text-xs rounded hover:bg-gray-300">
                                         Отменить
