@@ -156,21 +156,16 @@ export const scraperUtils = {
         });
     },
 
-    // ИСПРАВЛЕННАЯ валидация URL для конкретного типа скрайпера
+
     validateUrls(type: ScraperType, urls: string[]): { valid: string[], invalid: string[] } {
         const valid: string[] = [];
         const invalid: string[] = [];
 
-        // ИСПРАВЛЕННЫЕ паттерны валидации URL
         const patterns = {
-            // Лабиринт: /katalog/ или /kategoria/
-            labirint: /^https:\/\/labirintdoors\.ru\/(katalog|kategoria)\/.*/,
-            // Bunker: /prod/ или /catalog/
-            bunker: /^https:\/\/bunkerdoors\.ru\/(prod|catalog)\/.*/,
-            // Интекрон: /catalog/
-            intecron: /^https:\/\/intecron-msk\.ru\/catalog\/.*/,
-            // AS-Doors: /onstock/ или /catalog/
-            'as-doors': /^https:\/\/as-doors\.ru\/(onstock|catalog)\/.*/
+            labirint: /^https?:\/\/(www\.)?labirintdoors\.ru\/.+/,
+            bunker: /^https?:\/\/(www\.)?bunkerdoors\.ru\/.+/,
+            intecron: /^https?:\/\/(www\.)?intecron-msk\.ru\/.+/,
+            'as-doors': /^https?:\/\/(www\.)?as-doors\.ru\/.+/,
         };
 
         const pattern = patterns[type];

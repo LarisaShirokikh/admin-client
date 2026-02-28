@@ -32,6 +32,7 @@ import { debounce } from 'lodash';
 import ProductEditModal from '@/components/ProductEditModal';
 import PriceBulkEditModal from '@/components/PriceBulkEditModal';
 import { PriceUpdateData } from '@/types/products';
+import { getImageUrl } from '@/lib/utils/image';
 
 
 export default function ProductsPage() {
@@ -681,7 +682,7 @@ export default function ProductsPage() {
                                                 <div className="flex items-center gap-2.5 min-w-0">
                                                     {product.main_image && (
                                                         // eslint-disable-next-line @next/next/no-img-element
-                                                        <img src={product.main_image} alt="" className="h-9 w-9 rounded object-cover flex-shrink-0" />
+                                                        <img src={getImageUrl(product.main_image)} alt="" className="h-9 w-9 rounded object-cover flex-shrink-0" />
                                                     )}
                                                     <span className="text-gray-900 truncate max-w-[280px]" title={product.name}>
                                                         {product.name}

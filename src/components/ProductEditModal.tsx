@@ -11,6 +11,7 @@ import {
     ProductImage
 } from '@/types/products';
 import { productsApi } from '@/lib/api/products';
+import { getImageUrl } from '@/lib/utils/image';
 
 export default function ProductEditModal({
     product,
@@ -505,7 +506,7 @@ export default function ProductEditModal({
                                                         <div className="aspect-square relative bg-gray-100">
                                                             {/* Простое изображение без сложной логики состояний */}
                                                             <img
-                                                                src={image.url}
+                                                                src={image.file ? image.url : getImageUrl(image.url)}
                                                                 loading="lazy"
                                                                 decoding="async"
                                                                 className="w-full h-full object-cover"
@@ -519,7 +520,7 @@ export default function ProductEditModal({
                                                             {/* Тестовая кнопка для открытия изображения в новом окне */}
                                                             <button
                                                                 type="button"
-                                                                onClick={() => window.open(image.url, '_blank')}
+                                                                onClick={() => window.open(image.file ? image.url : getImageUrl(image.url), '_blank')}
                                                                 className="absolute bottom-1 right-1 bg-purple-500 text-white text-xs px-1 py-0.5 rounded"
                                                                 title="Открыть в новом окне"
                                                             >
@@ -535,7 +536,7 @@ export default function ProductEditModal({
                                                                         {/* Предпросмотр */}
                                                                         <button
                                                                             type="button"
-                                                                            onClick={() => setShowImagePreview(image.url)}
+                                                                            onClick={() => setShowImagePreview(image.file ? image.url : getImageUrl(image.url))}
                                                                             className="p-1 bg-white text-gray-700 rounded hover:bg-gray-100"
                                                                             title="Предпросмотр"
                                                                         >
