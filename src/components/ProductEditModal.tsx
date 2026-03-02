@@ -12,6 +12,8 @@ import {
 } from '@/types/products';
 import { productsApi } from '@/lib/api/products';
 import { getImageUrl } from '@/lib/utils/image';
+import ProductVideoSection from './products/ProductVideoSection';
+import ProductMediaSection, { MainMedia } from './products/ProductMediaSection';
 
 export default function ProductEditModal({
     product,
@@ -35,6 +37,7 @@ export default function ProductEditModal({
 
     const [images, setImages] = useState<ImageUploadData[]>([]);
     const [imagesLoading, setImagesLoading] = useState(true);
+    const [mainMedia, setMainMedia] = useState<MainMedia>(null);
     const [imagesError, setImagesError] = useState<string | null>(null);
 
     const [imageUrl, setImageUrl] = useState('');
@@ -379,21 +382,17 @@ export default function ProductEditModal({
 
                     {/* Изображения товара */}
                     <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                            <label className="block text-sm font-medium text-gray-700">
-                                Изображения товара
-                            </label>
-                            {imagesError && (
-                                <button
-                                    type="button"
-                                    onClick={handleReloadImages}
-                                    className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
-                                >
-                                    <RefreshCw className="h-4 w-4" />
-                                    Перезагрузить
-                                </button>
-                            )}
-                        </div>
+                        <ProductMediaSection
+                            productId={product.id}
+                            productName={formData.name}
+                            images={images}
+                            onImagesChange={setImages}
+                            imagesLoading={imagesLoading}
+                            imagesError={imagesError}
+                            onReloadImages={handleReloadImages}
+                            mainMedia={mainMedia}
+                            onMainMediaChange={setMainMedia}
+                        />
 
                         {/* Состояние загрузки изображений */}
                         {imagesLoading && (
@@ -610,6 +609,13 @@ export default function ProductEditModal({
                             </>
                         )}
                     </div>
+
+                    {/* {product.id && (
+                        <ProductVideoSection
+                            productId={product.id}
+                            productName={product.name}
+                        />
+                    )} */}
 
                     {/* Цены */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

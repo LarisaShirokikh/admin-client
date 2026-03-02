@@ -282,3 +282,27 @@ export interface ImageUploadData {
     isNew?: boolean;
     toDelete?: boolean;
 }
+
+export interface ProductFilters {
+    brand_id?: number;
+    catalog_id?: number;
+    category_id?: number;
+    is_active?: boolean;
+    in_stock?: boolean;
+    price_from?: number;
+    price_to?: number;
+}
+
+export interface SortConfig {
+    sortBy: string;
+    sortOrder: 'asc' | 'desc';
+}
+
+export interface ReferenceData {
+    brands: Brand[];
+    categories: Category[];
+    catalogs: Catalog[];
+    loadingBrands: boolean;
+    loadingCategories: boolean;
+    loadingCatalogs: boolean;
+}
