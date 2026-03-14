@@ -17,7 +17,8 @@ import {
     X,
     Download,
     Contact,
-    BarChart3
+    BarChart3,
+    Image
 } from 'lucide-react';
 import { ToastProvider } from '@/lib/contexts/ToastContext';
 
@@ -32,6 +33,7 @@ const navigation = [
     { name: 'Видео', href: '/dashboard/videos', icon: Video },
     { name: 'Посты', href: '/dashboard/posts', icon: Contact },
     { name: 'Настройки', href: '/dashboard/settings', icon: Settings },
+    { name: 'Баннеры', href: '/dashboard/banners', icon: Image },
 ];
 
 export default function DashboardLayout({
